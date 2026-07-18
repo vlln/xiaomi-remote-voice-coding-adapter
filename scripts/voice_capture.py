@@ -189,6 +189,7 @@ class AudioOutput:
         self._running = False
         if self._thread:
             self._thread.join(timeout=2)
+        self._started = False
         print(f"  音频输出: {self._written} 采样写入", flush=True)
 
 
