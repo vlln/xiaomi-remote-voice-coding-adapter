@@ -1,0 +1,70 @@
+{
+  "title": "Xiaomi Remote 2 Pro Key Mapping",
+  "rules": [
+    {
+      "description": "小米蓝牙语音遥控器按键映射",
+      "manipulators": [
+        {
+          "type": "basic",
+          "from": {
+            "key_code": "f5",
+            "modifiers": { "optional": ["any"] }
+          },
+          "to": [{ "key_code": "right_alt" }],
+          "conditions": [
+            {
+              "type": "device_if",
+              "identifiers": [
+                {
+                  "vendor_id": 10007,
+                  "product_id": 12984,
+                  "is_keyboard": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "basic",
+          "from": {
+            "key_code": "home",
+            "modifiers": { "optional": ["any"] }
+          },
+          "to": [{ "key_code": "escape" }],
+          "conditions": [
+            {
+              "type": "device_if",
+              "identifiers": [
+                {
+                  "vendor_id": 10007,
+                  "product_id": 12984,
+                  "is_keyboard": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "basic",
+          "from": {
+            "key_code": "grave_accent_and_tilde",
+            "modifiers": { "optional": ["any"] }
+          },
+          "to": [{ "key_code": "delete_or_backspace" }],
+          "conditions": [
+            {
+              "type": "device_if",
+              "identifiers": [
+                {
+                  "vendor_id": 10007,
+                  "product_id": 12984,
+                  "is_keyboard": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
