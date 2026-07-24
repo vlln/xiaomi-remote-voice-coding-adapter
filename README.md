@@ -64,5 +64,5 @@ python3 scripts/test_blackhole.py             # 测试 BlackHole 音频
 ## 音频处理链
 
 ```
-ADPCM 解码 → 跳过前 8 帧(消按键声) → 高通滤波(80Hz) → 低通平滑(3点) → 15dB 增益 → 16kHz→48kHz 重采样 → BlackHole
+ADPCM 解码 → 跳过前 8 帧(消按键声) → 高通滤波(220Hz) → 低通平滑(3点) → 自适应噪声门(AC/气流) → 15dB 增益 → 16kHz→48kHz 重采样 → BlackHole
 ```

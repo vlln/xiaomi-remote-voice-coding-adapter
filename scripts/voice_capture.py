@@ -89,6 +89,7 @@ class AudioOutput:
         self._buffer = deque()
         self._lock = threading.Lock()
         self._running = False
+        self._draining = False
         self._thread: threading.Thread | None = None
         self._written = 0
         self._previous = 0
@@ -99,6 +100,15 @@ class AudioOutput:
     def start(self):
         if self._running:
             return
+        # 清除上一轮残留数据, 防止旧录音串入新触发
+        self._draining = False
+        with self._lock:
+            self._buffer.clear()
+        # 等待旧线程退出 (buffer 已清空, 会很快结束)
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=2)
+        self._thread = None
+
         devices = sd.query_devices()
         bh_idx = None
         for i, dev in enumerate(devices):
@@ -115,6 +125,7 @@ class AudioOutput:
             self._debug_wav.setframerate(16000)
 
         self._have_previous = False
+        self._written = 0
         self._running = True
         self._thread = threading.Thread(target=self._run, args=(bh_idx,), daemon=True)
         self._thread.start()
@@ -138,7 +149,8 @@ class AudioOutput:
         stream.start()
 
         try:
-            while self._running:
+            # _running=False 后仍继续排空 _buffer (drain 模式), 避免残留数据串入下一轮
+            while self._running or (self._draining and self._buffer):
                 with self._lock:
                     if not self._buffer:
                         time.sleep(0.005)
@@ -170,27 +182,31 @@ class AudioOutput:
                 stream.write(output)
                 self._written += len(chunk)
         finally:
-            # 等待内部缓冲排空再停止
-            time.sleep(0.5)
-            stream.stop()
+            # drain: 等待 PortAudio 内部缓冲播完; 中断: 立即丢弃
+            if self._draining:
+                stream.stop()
+            else:
+                stream.abort()
             stream.close()
             if self._debug_wav:
                 self._debug_wav.close()
                 print(f"  调试 WAV 已保存: voice_debug.wav", flush=True)
+            print(f"  音频输出: {self._written} 采样写入", flush=True)
 
     def stop(self, drain: bool = False):
         if drain:
-            deadline = time.monotonic() + 1.0
-            while time.monotonic() < deadline:
-                with self._lock:
-                    if not self._buffer:
-                        break
-                time.sleep(0.02)
-        self._running = False
-        if self._thread:
-            self._thread.join(timeout=2)
-        self._started = False
-        print(f"  音频输出: {self._written} 采样写入", flush=True)
+            # 非阻塞: 让 _run 线程在后台自然排空 _buffer 后自行退出
+            # (stream.write 按实时速率消费, 同步等待会阻塞 BLE RunLoop)
+            self._draining = True
+            self._running = False
+        else:
+            # 立即停止: 清空 buffer, 中断线程
+            self._draining = False
+            self._running = False
+            with self._lock:
+                self._buffer.clear()
+            if self._thread:
+                self._thread.join(timeout=2)
 
 
 # ── 降噪 ────────────────────────────────────────────────────
@@ -203,8 +219,8 @@ class NoiseReducer:
         self._prev_output = 0.0
 
     def _highpass(self, samples: list[int]) -> list[int]:
-        """一阶高通 (~80Hz) 去除 DC"""
-        alpha = 0.97
+        """一阶高通 (~220Hz) 去除 DC + AC 气流低频主体"""
+        alpha = 0.91
         result = []
         for s in samples:
             output = alpha * (self._prev_output + s - self._prev_input)
@@ -228,6 +244,55 @@ class NoiseReducer:
         return samples
 
 
+class NoiseGate:
+    """自适应噪声门: 估计底噪, 说话间衰减背景噪声 (AC/气流)。
+
+    - 仅在非语音段 (能量低于门限 4x) 更新底噪估计, 避免被语音抬高
+    - 软扩展门: 门限以下按 sqrt 衰减, 避免硬切产生的断续感
+    - 跨块线性插值增益, 避免咔哒声
+    """
+
+    def __init__(self):
+        self._noise_floor = None  # amplitude^2, 首帧初始化
+        self._gain = 1.0
+        self._threshold_db = 12.0   # 门限高于底噪 12dB
+        self._floor_gain = 0.08     # 关门时 -22dB
+        self._attack = 0.6          # 关门速度 (per chunk)
+        self._release = 0.08        # 开门速度 (per chunk)
+
+    def process(self, samples: list[int]) -> list[int]:
+        if not samples:
+            return samples
+        n = len(samples)
+        e = sum(s * s for s in samples) / n
+
+        if self._noise_floor is None:
+            self._noise_floor = max(1.0, e)
+
+        thr_sq = self._noise_floor * (10.0 ** (self._threshold_db / 20.0)) ** 2
+        # 仅在非语音段更新底噪 (能量低于门限 4x = 24dB)
+        if e < thr_sq * 4:
+            self._noise_floor = 0.97 * self._noise_floor + 0.03 * e
+            if self._noise_floor < 1.0:
+                self._noise_floor = 1.0
+
+        # 软扩展门: 门限以上全通, 以下按 sqrt 渐衰到 floor_gain
+        if e > thr_sq:
+            target = 1.0
+        else:
+            target = max(self._floor_gain, (e / thr_sq) ** 0.5)
+
+        coef = self._attack if target < self._gain else self._release
+        new_gain = self._gain * (1 - coef) + target * coef
+
+        # 跨块线性插值增益, 消除咔哒
+        g0 = self._gain
+        out = [max(-32768, min(32767, int(s * (g0 + (new_gain - g0) * (i / n)))))
+               for i, s in enumerate(samples)]
+        self._gain = new_gain
+        return out
+
+
 # ── CoreBluetooth 语音捕获 ──────────────────────────────────
 
 class VoiceCaptureDelegate(NSObject):
@@ -243,6 +308,7 @@ class VoiceCaptureDelegate(NSObject):
         self.caps = None
         self.decoder = AdpcmDecoder()
         self.noise_reducer = NoiseReducer()
+        self.noise_gate = NoiseGate()
         self.audio_output = None  # 在 _start_capture 中初始化
         self.mic_open = False
         self.audio_frames = 0
@@ -413,6 +479,7 @@ class VoiceCaptureDelegate(NSObject):
                         del pending[:frame_size]
                         samples = self.decoder.decode_bytes(frame)
                         samples = self.noise_reducer.process(samples)
+                        samples = self.noise_gate.process(samples)
                         samples = self._apply_gain(samples, 15.0)
                         self.audio_output.write(samples)
                         self.pcm_samples += len(samples)
@@ -420,6 +487,7 @@ class VoiceCaptureDelegate(NSObject):
             print(f"  尾部刷新: {tail_frames} 帧, pending={len(pending)} bytes", flush=True)
             self._pending_audio = bytearray()
             self.noise_reducer = NoiseReducer()
+            self.noise_gate = NoiseGate()
             self.audio_output.stop(drain=True)
 
     def _handle_audio(self, data: bytes):
@@ -442,6 +510,7 @@ class VoiceCaptureDelegate(NSObject):
 
             samples = self.decoder.decode_bytes(frame)
             samples = self.noise_reducer.process(samples)
+            samples = self.noise_gate.process(samples)
             samples = self._apply_gain(samples, 15.0)
             self.audio_output.write(samples)
             self.pcm_samples += len(samples)
