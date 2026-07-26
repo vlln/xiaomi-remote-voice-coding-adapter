@@ -195,12 +195,9 @@ class AudioOutput:
 
     def stop(self, drain: bool = False):
         if drain:
-            # 非阻塞: 让 _run 线程在后台自然排空 _buffer 后自行退出
-            # (stream.write 按实时速率消费, 同步等待会阻塞 BLE RunLoop)
             self._draining = True
             self._running = False
         else:
-            # 立即停止: 清空 buffer, 中断线程
             self._draining = False
             self._running = False
             with self._lock:
@@ -319,7 +316,11 @@ class VoiceCaptureDelegate(NSObject):
         self._skip_frames = 0
         self._audio_subscribed = False
         self._control_subscribed = False
+        self._t0 = time.monotonic()    # 调试时间戳基准
         return self
+
+    def _ts(self) -> str:
+        return f"[+{time.monotonic() - self._t0:7.3f}s]"
 
     def _start_capture(self, debug: bool = False):
         self.audio_output = AudioOutput(debug_wav=debug)
@@ -332,7 +333,16 @@ class VoiceCaptureDelegate(NSObject):
         self.peripheral.writeValue_forCharacteristic_type_(cmd, self.tx_char, 1)
         self.mic_open = True
         self.audio_output.start()
-        print(f"  已发送 MIC_OPEN: {cmd.hex()}", flush=True)
+        print(f"{self._ts()} 已发送 MIC_OPEN: {cmd.hex()}", flush=True)
+
+    def _send_mic_close(self):
+        """发送 MIC_CLOSE, 正式关闭遥控器麦克风会话。"""
+        if not self.peripheral or not self.tx_char or not self.caps:
+            return
+        version = self.caps.get("version", 0x0100)
+        close_cmd = bytes((0x0D, 0x00)) if version >= 0x0100 else bytes((0x0D,))
+        self.peripheral.writeValue_forCharacteristic_type_(close_cmd, self.tx_char, 1)
+        print(f"{self._ts()} 已发送 MIC_CLOSE: {close_cmd.hex()}", flush=True)
 
     # ── CBCentralManagerDelegate ─────────────────────────────
 
@@ -375,84 +385,102 @@ class VoiceCaptureDelegate(NSObject):
     # ── CBPeripheralDelegate ─────────────────────────────────
 
     def peripheral_didDiscoverServices_(self, peripheral, error):
-        if error:
-            print(f"服务发现失败: {error}")
-            return
-        for svc in peripheral.services():
-            if str(svc.UUID()).casefold() == VOICE_SERVICE:
-                print("找到 ATVV 语音服务")
-                tx_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_TX)
-                audio_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_AUDIO)
-                control_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_CONTROL)
-                peripheral.discoverCharacteristics_forService_(
-                    [tx_uuid, audio_uuid, control_uuid], svc)
+        try:
+            if error:
+                print(f"服务发现失败: {error}")
+                return
+            for svc in peripheral.services():
+                if str(svc.UUID()).casefold() == VOICE_SERVICE:
+                    print("找到 ATVV 语音服务")
+                    tx_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_TX)
+                    audio_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_AUDIO)
+                    control_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_CONTROL)
+                    peripheral.discoverCharacteristics_forService_(
+                        [tx_uuid, audio_uuid, control_uuid], svc)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def peripheral_didDiscoverCharacteristicsForService_error_(self, peripheral, service, error):
-        if error:
-            print(f"特征发现失败: {error}")
-            return
-        for char in service.characteristics():
-            uuid = str(char.UUID()).casefold()
-            print(f"  特征: {uuid} 属性=0x{char.properties():x}")
-            if uuid == VOICE_TX:
-                self.tx_char = char
-            elif uuid == VOICE_AUDIO:
-                self.audio_char = char
-            elif uuid == VOICE_CONTROL:
-                self.control_char = char
+        try:
+            if error:
+                print(f"特征发现失败: {error}")
+                return
+            for char in service.characteristics():
+                uuid = str(char.UUID()).casefold()
+                print(f"  特征: {uuid} 属性=0x{char.properties():x}")
+                if uuid == VOICE_TX:
+                    self.tx_char = char
+                elif uuid == VOICE_AUDIO:
+                    self.audio_char = char
+                elif uuid == VOICE_CONTROL:
+                    self.control_char = char
 
-        if self.audio_char and self.control_char:
-            print("订阅 Audio + Control 通知...")
-            peripheral.setNotifyValue_forCharacteristic_(True, self.audio_char)
-            peripheral.setNotifyValue_forCharacteristic_(True, self.control_char)
+            if self.audio_char and self.control_char:
+                print("订阅 Audio + Control 通知...")
+                peripheral.setNotifyValue_forCharacteristic_(True, self.audio_char)
+                peripheral.setNotifyValue_forCharacteristic_(True, self.control_char)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def peripheral_didUpdateNotificationStateForCharacteristic_error_(self, peripheral, char, error):
-        uuid = str(char.UUID()).casefold()
-        if error:
-            print(f"订阅失败 {uuid}: {error}")
-            return
-        print(f"订阅成功: {uuid}")
+        try:
+            uuid = str(char.UUID()).casefold()
+            if error:
+                print(f"订阅失败 {uuid}: {error}")
+                return
+            print(f"订阅成功: {uuid}")
 
-        if uuid == VOICE_AUDIO:
-            self._audio_subscribed = True
-        elif uuid == VOICE_CONTROL:
-            self._control_subscribed = True
+            if uuid == VOICE_AUDIO:
+                self._audio_subscribed = True
+            elif uuid == VOICE_CONTROL:
+                self._control_subscribed = True
 
-        if self._audio_subscribed and self._control_subscribed:
-            print(f"发送 GET_CAPS: {GET_CAPS.hex()}")
-            peripheral.writeValue_forCharacteristic_type_(GET_CAPS, self.tx_char, 1)
-            print(f"\n按住遥控器语音键说话... (Ctrl+C 停止)\n")
-            self.started = True
+            if self._audio_subscribed and self._control_subscribed:
+                print(f"发送 GET_CAPS: {GET_CAPS.hex()}")
+                peripheral.writeValue_forCharacteristic_type_(GET_CAPS, self.tx_char, 1)
+                print(f"\n按住遥控器语音键说话... (Ctrl+C 停止)\n")
+                self.started = True
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def peripheral_didUpdateValueForCharacteristic_error_(self, peripheral, char, error):
-        if error:
-            return
-        data = char.value()
-        if data is None:
-            return
-        payload = bytes(data)
-        uuid = str(char.UUID()).casefold()
+        try:
+            if error:
+                return
+            data = char.value()
+            if data is None:
+                return
+            payload = bytes(data)
+            uuid = str(char.UUID()).casefold()
 
-        if uuid == VOICE_CONTROL:
-            self._handle_control(payload)
-        elif uuid == VOICE_AUDIO:
-            self._handle_audio(payload)
+            if uuid == VOICE_CONTROL:
+                self._handle_control(payload)
+            elif uuid == VOICE_AUDIO:
+                self._handle_audio(payload)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def _handle_control(self, data: bytes):
         if not data:
             return
         opcode = data[0]
-        print(f"  控制: opcode=0x{opcode:02X} len={len(data)}", flush=True)
+        print(f"{self._ts()} 控制: opcode=0x{opcode:02X} len={len(data)} mic_open={self.mic_open}", flush=True)
 
         if opcode == 0x0B:
             self.caps = self._parse_caps(data)
-            print(f"  能力: {self.caps}", flush=True)
+            print(f"{self._ts()} 能力: {self.caps}", flush=True)
         elif opcode == 0x08:
-            print("  🎤 语音键按下!", flush=True)
-            if self.caps and not self.mic_open:
+            print(f"{self._ts()} 🎤 语音键按下!", flush=True)
+            if self.caps:
+                if self.mic_open:
+                    self._send_mic_close()
                 self._send_mic_open()
         elif opcode == 0x04:
-            print("  🎤 音频流开始", flush=True)
+            print(f"{self._ts()} 🎤 音频流开始", flush=True)
             self.decoder.reset(0, 0)
             self._pending_audio = bytearray()
             self._skip_frames = 8  # 跳过前 ~100ms 消除按键声
@@ -461,34 +489,42 @@ class VoiceCaptureDelegate(NSObject):
         elif opcode == 0x0A and len(data) >= 7:
             predictor = int.from_bytes(data[4:6], "big", signed=True)
             self.decoder.reset(predictor, data[6])
-            print(f"  音频同步: predictor={predictor} step={data[6]}", flush=True)
+            print(f"{self._ts()} 音频同步: predictor={predictor} step={data[6]}", flush=True)
         elif opcode == 0x00:
-            print("  🎤 语音结束", flush=True)
-            self.mic_open = False
-            # 刷新尾部残留
-            pending = getattr(self, '_pending_audio', bytearray())
-            tail_frames = 0
-            if pending and self.caps:
-                frame_size = self.caps.get("frame_size", 120)
-                if len(pending) > 0:
-                    pad_len = frame_size - len(pending) % frame_size
-                    if pad_len < frame_size:
-                        pending.extend(b'\x00' * pad_len)
-                    while len(pending) >= frame_size:
-                        frame = bytes(pending[:frame_size])
-                        del pending[:frame_size]
-                        samples = self.decoder.decode_bytes(frame)
-                        samples = self.noise_reducer.process(samples)
-                        samples = self.noise_gate.process(samples)
-                        samples = self._apply_gain(samples, 15.0)
-                        self.audio_output.write(samples)
-                        self.pcm_samples += len(samples)
-                        tail_frames += 1
-            print(f"  尾部刷新: {tail_frames} 帧, pending={len(pending)} bytes", flush=True)
-            self._pending_audio = bytearray()
-            self.noise_reducer = NoiseReducer()
-            self.noise_gate = NoiseGate()
-            self.audio_output.stop(drain=True)
+            if not self.mic_open:
+                print(f"{self._ts()} 忽略重复 AUDIO_STOP (mic_open=False)", flush=True)
+                return
+            print(f"{self._ts()} 🎤 语音结束 (遥控器通知)", flush=True)
+            self._end_speech()
+
+    def _end_speech(self):
+        """结束当前语音会话: 刷尾部、停输出、发 MIC_CLOSE。"""
+        self.mic_open = False
+        # 刷新尾部残留
+        pending = getattr(self, '_pending_audio', bytearray())
+        tail_frames = 0
+        if pending and self.caps:
+            frame_size = self.caps.get("frame_size", 120)
+            if len(pending) > 0:
+                pad_len = frame_size - len(pending) % frame_size
+                if pad_len < frame_size:
+                    pending.extend(b'\x00' * pad_len)
+                while len(pending) >= frame_size:
+                    frame = bytes(pending[:frame_size])
+                    del pending[:frame_size]
+                    samples = self.decoder.decode_bytes(frame)
+                    samples = self.noise_reducer.process(samples)
+                    samples = self.noise_gate.process(samples)
+                    samples = self._apply_gain(samples, 15.0)
+                    self.audio_output.write(samples)
+                    self.pcm_samples += len(samples)
+                    tail_frames += 1
+        print(f"{self._ts()} 尾部刷新: {tail_frames} 帧, pending={len(pending)} bytes", flush=True)
+        self._pending_audio = bytearray()
+        self.noise_reducer = NoiseReducer()
+        self.noise_gate = NoiseGate()
+        self.audio_output.stop(drain=True)
+        self._send_mic_close()
 
     def _handle_audio(self, data: bytes):
         if not self.mic_open or self.caps is None:
@@ -516,7 +552,7 @@ class VoiceCaptureDelegate(NSObject):
             self.pcm_samples += len(samples)
 
             if self.audio_frames == 1 or self.audio_frames % 50 == 0:
-                print(f"  音频: {self.audio_frames} 帧, {self.pcm_samples} 采样", flush=True)
+                print(f"{self._ts()} 音频: #{self.audio_frames} 帧, {self.pcm_samples} 采样", flush=True)
 
     @staticmethod
     def _apply_gain(samples: list[int], gain_db: float) -> list[int]:
@@ -551,11 +587,9 @@ class VoiceCaptureDelegate(NSObject):
         }
 
     def _cleanup(self):
-        if self.mic_open and self.tx_char:
-            version = self.caps.get("version", 0x0100) if self.caps else 0x0100
-            close_cmd = bytes((0x0D, 0x00)) if version >= 0x0100 else bytes((0x0D,))
-            self.peripheral.writeValue_forCharacteristic_type_(close_cmd, self.tx_char, 1)
-            print("已发送 MIC_CLOSE", flush=True)
+        if self.mic_open:
+            self._send_mic_close()
+            self.mic_open = False
 
         if self.audio_output:
             self.audio_output.stop()
