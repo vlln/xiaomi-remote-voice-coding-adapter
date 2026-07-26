@@ -138,13 +138,22 @@ class AudioOutput:
             self._buffer.extend(samples)
 
     def _run(self, device_idx: int):
+        # 预缓冲: 攒够 ~2 帧 (30ms @16kHz) 再开流, 吸收 BLE 通知突发/抖动
+        # (实测 BLE 通知间隔会在 1ms~27ms 间跳动, 不预缓冲会 underrun)
+        pre_buffer = 480  # 2 帧 × 240 samples
+        while self._running and len(self._buffer) < pre_buffer:
+            time.sleep(0.003)
+        # 若等待期间被 abort (非 drain), 直接退出
+        if not self._running and not self._draining:
+            return
+
         stream = sd.OutputStream(
             device=device_idx,
             samplerate=48000,
             channels=2,
             dtype='int16',
-            blocksize=480,  # 10ms, 减少内部缓冲
-            latency='low',
+            blocksize=480,  # 10ms
+            latency=0.05,   # 50ms 内部缓冲, 吸收 BLE 27ms 抖动 (原 'low' ~10ms 会 underrun)
         )
         stream.start()
 
@@ -250,12 +259,16 @@ class NoiseGate:
     """
 
     def __init__(self):
-        self._noise_floor = None  # amplitude^2, 首帧初始化
+        self._noise_floor = 1.0   # 从最小值开始, 让底噪在静音时自然适配上来
         self._gain = 1.0
         self._threshold_db = 12.0   # 门限高于底噪 12dB
-        self._floor_gain = 0.08     # 关门时 -22dB
-        self._attack = 0.6          # 关门速度 (per chunk)
-        self._release = 0.08        # 开门速度 (per chunk)
+        self._floor_gain = 0.15     # 关门时 -16dB
+        self._attack = 0.08         # 关门速度: 慢关门 (~200ms)
+        self._release = 0.35        # 开门速度: 快开门 (~50ms)
+
+    @property
+    def gain(self) -> float:
+        return self._gain
 
     def process(self, samples: list[int]) -> list[int]:
         if not samples:
@@ -263,13 +276,11 @@ class NoiseGate:
         n = len(samples)
         e = sum(s * s for s in samples) / n
 
-        if self._noise_floor is None:
-            self._noise_floor = max(1.0, e)
-
         thr_sq = self._noise_floor * (10.0 ** (self._threshold_db / 20.0)) ** 2
-        # 仅在非语音段更新底噪 (能量低于门限 4x = 24dB)
-        if e < thr_sq * 4:
-            self._noise_floor = 0.97 * self._noise_floor + 0.03 * e
+        # 仅在"确实安静"时更新底噪: 能量低于门限本身,
+        # 避免说话时底噪被抬高导致门限上漂、增益越压越低
+        if e < thr_sq:
+            self._noise_floor = 0.95 * self._noise_floor + 0.05 * e
             if self._noise_floor < 1.0:
                 self._noise_floor = 1.0
 
@@ -317,12 +328,15 @@ class VoiceCaptureDelegate(NSObject):
         self._audio_subscribed = False
         self._control_subscribed = False
         self._t0 = time.monotonic()    # 调试时间戳基准
+        self._verbose = False          # --verbose 时打印每条 BLE 通知
+        self._audio_started = False    # 当前会话是否已收到过 0x04
         return self
 
     def _ts(self) -> str:
         return f"[+{time.monotonic() - self._t0:7.3f}s]"
 
-    def _start_capture(self, debug: bool = False):
+    def _start_capture(self, debug: bool = False, verbose: bool = False):
+        self._verbose = verbose
         self.audio_output = AudioOutput(debug_wav=debug)
         self.manager = CoreBluetooth.CBCentralManager.alloc().initWithDelegate_queue_(self, None)
         print("正在初始化蓝牙...")
@@ -457,8 +471,12 @@ class VoiceCaptureDelegate(NSObject):
             uuid = str(char.UUID()).casefold()
 
             if uuid == VOICE_CONTROL:
+                if self._verbose:
+                    print(f"{self._ts()} BLE通知到达: CTL len={len(payload)}", flush=True)
                 self._handle_control(payload)
             elif uuid == VOICE_AUDIO:
+                if self._verbose:
+                    print(f"{self._ts()} BLE通知到达: AUD len={len(payload)}", flush=True)
                 self._handle_audio(payload)
         except Exception:
             import traceback
@@ -480,12 +498,17 @@ class VoiceCaptureDelegate(NSObject):
                     self._send_mic_close()
                 self._send_mic_open()
         elif opcode == 0x04:
-            print(f"{self._ts()} 🎤 音频流开始", flush=True)
-            self.decoder.reset(0, 0)
-            self._pending_audio = bytearray()
-            self._skip_frames = 8  # 跳过前 ~100ms 消除按键声
-            if not self.mic_open:
-                self._send_mic_open()
+            if self._audio_started:
+                # 同一会话内重复 0x04: 遥控器双发, 不能重置解码器/再跳帧
+                print(f"{self._ts()} ⚠️ 重复 AUDIO_START (audio_frames={self.audio_frames} pending={len(self._pending_audio)}), 忽略重置", flush=True)
+            else:
+                self._audio_started = True
+                print(f"{self._ts()} 🎤 音频流开始", flush=True)
+                self.decoder.reset(0, 0)
+                self._pending_audio = bytearray()
+                self._skip_frames = 8  # 跳过前 ~100ms 消除按键声
+                if not self.mic_open:
+                    self._send_mic_open()
         elif opcode == 0x0A and len(data) >= 7:
             predictor = int.from_bytes(data[4:6], "big", signed=True)
             self.decoder.reset(predictor, data[6])
@@ -521,6 +544,10 @@ class VoiceCaptureDelegate(NSObject):
                     tail_frames += 1
         print(f"{self._ts()} 尾部刷新: {tail_frames} 帧, pending={len(pending)} bytes", flush=True)
         self._pending_audio = bytearray()
+        self._skip_frames = 0
+        self._audio_started = False
+        self.audio_frames = 0
+        self.pcm_samples = 0
         self.noise_reducer = NoiseReducer()
         self.noise_gate = NoiseGate()
         self.audio_output.stop(drain=True)
@@ -532,6 +559,8 @@ class VoiceCaptureDelegate(NSObject):
         frame_size = self.caps.get("frame_size", 120)
         pending = getattr(self, '_pending_audio', bytearray())
         pending.extend(data)
+        if self._verbose:
+            print(f"{self._ts()} 音频通知: len={len(data)} pending={len(pending)}", flush=True)
         while len(pending) >= frame_size:
             frame = bytes(pending[:frame_size])
             del pending[:frame_size]
@@ -541,6 +570,8 @@ class VoiceCaptureDelegate(NSObject):
 
             skip = getattr(self, '_skip_frames', 0)
             if skip > 0:
+                if self._verbose:
+                    print(f"{self._ts()} 跳帧 #{self.audio_frames} (skip remaining={skip - 1})", flush=True)
                 self._skip_frames = skip - 1
                 continue
 
@@ -551,8 +582,8 @@ class VoiceCaptureDelegate(NSObject):
             self.audio_output.write(samples)
             self.pcm_samples += len(samples)
 
-            if self.audio_frames == 1 or self.audio_frames % 50 == 0:
-                print(f"{self._ts()} 音频: #{self.audio_frames} 帧, {self.pcm_samples} 采样", flush=True)
+            if self.audio_frames == 1 or self.audio_frames % 10 == 0:
+                print(f"{self._ts()} 音频: #{self.audio_frames} 帧, {self.pcm_samples} 采样, gate_gain={self.noise_gate.gain:.3f}", flush=True)
 
     @staticmethod
     def _apply_gain(samples: list[int], gain_db: float) -> list[int]:
@@ -610,10 +641,11 @@ def main():
     parser = argparse.ArgumentParser(description="Xiaomi Remote 2 Pro 语音桥接 (→ BlackHole)")
     parser.add_argument("--duration", type=float, default=0, help="最长运行时长(秒), 0=不限")
     parser.add_argument("--debug", action="store_true", help="保存 voice_debug.wav")
+    parser.add_argument("--verbose", "-v", action="store_true", help="打印每条 BLE 通知 (调试用)")
     args = parser.parse_args()
 
     delegate = VoiceCaptureDelegate.alloc().init()
-    delegate._start_capture(debug=args.debug)
+    delegate._start_capture(debug=args.debug, verbose=args.verbose)
 
     deadline = time.time() + args.duration if args.duration > 0 else float('inf')
     while time.time() < deadline and not delegate.stop_event:
