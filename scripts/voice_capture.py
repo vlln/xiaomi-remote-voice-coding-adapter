@@ -330,6 +330,8 @@ class VoiceCaptureDelegate(NSObject):
         self._t0 = time.monotonic()    # 调试时间戳基准
         self._verbose = False          # --verbose 时打印每条 BLE 通知
         self._audio_started = False    # 当前会话是否已收到过 0x04
+        self._last_activity = 0.0      # 最后一次收到音频/控制的时间 (monotonic)
+        self._session_start = 0.0      # 当前会话开始时间 (monotonic)
         return self
 
     def _ts(self) -> str:
@@ -346,6 +348,8 @@ class VoiceCaptureDelegate(NSObject):
         cmd = bytes((0x0C, 0x00)) if version >= 0x0100 else bytes((0x0C, 0x00, 0x02))
         self.peripheral.writeValue_forCharacteristic_type_(cmd, self.tx_char, 1)
         self.mic_open = True
+        self._session_start = time.monotonic()
+        self._last_activity = self._session_start
         self.audio_output.start()
         print(f"{self._ts()} 已发送 MIC_OPEN: {cmd.hex()}", flush=True)
 
@@ -485,6 +489,7 @@ class VoiceCaptureDelegate(NSObject):
     def _handle_control(self, data: bytes):
         if not data:
             return
+        self._last_activity = time.monotonic()
         opcode = data[0]
         print(f"{self._ts()} 控制: opcode=0x{opcode:02X} len={len(data)} mic_open={self.mic_open}", flush=True)
 
@@ -493,9 +498,8 @@ class VoiceCaptureDelegate(NSObject):
             print(f"{self._ts()} 能力: {self.caps}", flush=True)
         elif opcode == 0x08:
             print(f"{self._ts()} 🎤 语音键按下!", flush=True)
-            if self.caps:
-                if self.mic_open:
-                    self._send_mic_close()
+            if self.caps and not self.mic_open:
+                # 仅在未开麦时 open; 已开麦时忽略, 避免重复 close+open 导致死循环
                 self._send_mic_open()
         elif opcode == 0x04:
             if self._audio_started:
@@ -556,6 +560,7 @@ class VoiceCaptureDelegate(NSObject):
     def _handle_audio(self, data: bytes):
         if not self.mic_open or self.caps is None:
             return
+        self._last_activity = time.monotonic()
         frame_size = self.caps.get("frame_size", 120)
         pending = getattr(self, '_pending_audio', bytearray())
         pending.extend(data)
@@ -617,6 +622,25 @@ class VoiceCaptureDelegate(NSObject):
             "sample_rate": 16000 if selected_codec == 0x02 else 8000,
         }
 
+    def _watchdog(self):
+        """看门狗: 检测异常状态并强制结束会话。
+
+        - 静音超时: mic_open 但超过 2s 没收到任何音频/控制 → 0x00 可能丢了
+        - 会话超时: mic_open 超过 30s → 可能卡死, 强制结束
+        """
+        if not self.mic_open:
+            return
+        now = time.monotonic()
+        silence_timeout = 2.0    # 2s 无活动
+        max_session = 30.0       # 最长 30s
+
+        if now - self._last_activity > silence_timeout:
+            print(f"{self._ts()} 🚨 看门狗: 静音超时 ({now - self._last_activity:.1f}s 无活动), 强制结束", flush=True)
+            self._end_speech()
+        elif now - self._session_start > max_session:
+            print(f"{self._ts()} 🚨 看门狗: 会话超时 ({now - self._session_start:.1f}s), 强制结束", flush=True)
+            self._end_speech()
+
     def _cleanup(self):
         if self.mic_open:
             self._send_mic_close()
@@ -650,6 +674,7 @@ def main():
     deadline = time.time() + args.duration if args.duration > 0 else float('inf')
     while time.time() < deadline and not delegate.stop_event:
         NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.1))
+        delegate._watchdog()
 
     if not delegate.started:
         print("\n⚠️ 未能连接或启动语音服务")
