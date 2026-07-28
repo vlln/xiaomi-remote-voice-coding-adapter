@@ -640,6 +640,8 @@ class VoiceCaptureDelegate(NSObject):
         if self._verbose:
             print(f"{self._ts()} 音频通知: len={len(data)} pending={len(pending)}", flush=True)
         while len(pending) >= frame_size:
+            if not self.mic_open:
+                break  # 看门狗/0x00 在处理过程中结束了会话
             frame = bytes(pending[:frame_size])
             del pending[:frame_size]
             self._pending_audio = pending
@@ -699,9 +701,9 @@ class VoiceCaptureDelegate(NSObject):
         """独立看门狗线程: 不受 runloop 阻塞影响, 每 500ms 检查一次。
 
         - 断连: BLE 已断连但 mic_open 还没清 → 强制清理
-        - 音频静音: mic_open 但超过 1s 没收到音频帧 → 0x00 可能丢了
-        - 帧间隔退化: 帧间隔 > 500ms → BLE 连接严重退化, 强制结束
-        - 会话超时: mic_open 超过 10s → 强制结束
+        - 音频静音: mic_open 但超过 2s 没收到音频帧 → 0x00 可能丢了
+          (不用 1s, BLE 正常抖动偶尔会有 1s 间隔)
+        - 会话超时: 不限制, 用户可能长时间说话; 由音频静音 + 循环检测兜底
         """
         while not self._watchdog_stop:
             time.sleep(0.5)
@@ -714,18 +716,12 @@ class VoiceCaptureDelegate(NSObject):
                 self._end_speech()
                 continue
 
-            audio_silence = 1.0       # 1s 无音频帧 (正常间隔 15ms)
-            max_session = 10.0        # 最长 10s
-            max_frame_gap = 0.5       # 单帧间隔超过 500ms = BLE 退化
+            audio_silence = 2.0       # 2s 无音频帧 (正常间隔 15ms)
 
             silence = now - self._last_audio_time
-            session_dur = now - self._session_start
 
             if silence > audio_silence:
                 print(f"{self._ts()} 🚨 看门狗: 音频静音超时 ({silence:.1f}s 无音频), 强制结束", flush=True)
-                self._end_speech()
-            elif session_dur > max_session:
-                print(f"{self._ts()} 🚨 看门狗: 会话超时 ({session_dur:.1f}s), 强制结束", flush=True)
                 self._end_speech()
 
     def _cleanup(self):
