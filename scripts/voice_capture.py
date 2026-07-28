@@ -330,8 +330,12 @@ class VoiceCaptureDelegate(NSObject):
         self._t0 = time.monotonic()    # 调试时间戳基准
         self._verbose = False          # --verbose 时打印每条 BLE 通知
         self._audio_started = False    # 当前会话是否已收到过 0x04
-        self._last_activity = 0.0      # 最后一次收到音频/控制的时间 (monotonic)
+        self._last_audio_time = 0.0    # 最后一次收到音频帧的时间 (monotonic)
         self._session_start = 0.0      # 当前会话开始时间 (monotonic)
+        self._session_end_time = 0.0   # 上一次 _end_speech 的时间 (用于冷却期)
+        self._connected = False        # BLE 是否已连接
+        self._recent_starts = []       # 近期 0x04 启动时间列表 (检测循环)
+        self._suppressed_until = 0.0   # 检测到循环后抑制 0x04 直到此时间
         return self
 
     def _ts(self) -> str:
@@ -344,18 +348,21 @@ class VoiceCaptureDelegate(NSObject):
         print("正在初始化蓝牙...")
 
     def _send_mic_open(self):
+        if not self._connected or not self.peripheral or not self.tx_char:
+            print(f"{self._ts()} ⚠️ MIC_OPEN 跳过 (未连接)", flush=True)
+            return
         version = self.caps.get("version", 0x0100) if self.caps else 0x0100
         cmd = bytes((0x0C, 0x00)) if version >= 0x0100 else bytes((0x0C, 0x00, 0x02))
         self.peripheral.writeValue_forCharacteristic_type_(cmd, self.tx_char, 1)
         self.mic_open = True
         self._session_start = time.monotonic()
-        self._last_activity = self._session_start
+        self._last_audio_time = self._session_start
         self.audio_output.start()
         print(f"{self._ts()} 已发送 MIC_OPEN: {cmd.hex()}", flush=True)
 
     def _send_mic_close(self):
         """发送 MIC_CLOSE, 正式关闭遥控器麦克风会话。"""
-        if not self.peripheral or not self.tx_char or not self.caps:
+        if not self._connected or not self.peripheral or not self.tx_char or not self.caps:
             return
         version = self.caps.get("version", 0x0100)
         close_cmd = bytes((0x0D, 0x00)) if version >= 0x0100 else bytes((0x0D,))
@@ -365,40 +372,71 @@ class VoiceCaptureDelegate(NSObject):
     # ── CBCentralManagerDelegate ─────────────────────────────
 
     def centralManagerDidUpdateState_(self, manager):
-        states = {5: "PoweredOn", 4: "Unauthorized", 3: "Unsupported", 2: "PoweredOff"}
-        state_name = states.get(manager.state(), f"Unknown({manager.state()})")
-        print(f"蓝牙状态: {state_name}")
+        try:
+            states = {5: "PoweredOn", 4: "Unauthorized", 3: "Unsupported", 2: "PoweredOff"}
+            state_name = states.get(manager.state(), f"Unknown({manager.state()})")
+            print(f"蓝牙状态: {state_name}")
 
-        if manager.state() == 5:
-            voice_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_SERVICE)
-            peripherals = manager.retrieveConnectedPeripheralsWithServices_([voice_uuid])
-            print(f"已连接 ATVV 设备: {len(peripherals)}")
+            if manager.state() == 5:
+                voice_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_SERVICE)
+                peripherals = manager.retrieveConnectedPeripheralsWithServices_([voice_uuid])
+                print(f"已连接 ATVV 设备: {len(peripherals)}")
 
-            if peripherals:
-                self.peripheral = peripherals[0]
-                print(f"找到: {self.peripheral.name() or 'unnamed'}")
-                self.peripheral.setDelegate_(self)
-                manager.connectPeripheral_options_(self.peripheral, None)
-            else:
-                print("扫描中...")
-                manager.scanForPeripheralsWithServices_options_([voice_uuid], None)
+                if peripherals:
+                    self.peripheral = peripherals[0]
+                    print(f"找到: {self.peripheral.name() or 'unnamed'}")
+                    self.peripheral.setDelegate_(self)
+                    manager.connectPeripheral_options_(self.peripheral, None)
+                else:
+                    print("扫描中...")
+                    manager.scanForPeripheralsWithServices_options_([voice_uuid], None)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def centralManager_didDiscoverPeripheral_advertisementData_RSSI_(self, manager, peripheral, ad_data, rssi):
-        name = peripheral.name() or "unnamed"
-        if '小米' in str(name) or 'xiaomi' in str(name).lower() or 'mi rc' in str(name).lower():
-            print(f"发现: {name}, 连接中...")
-            self.peripheral = peripheral
-            self.peripheral.setDelegate_(self)
-            manager.stopScan()
-            manager.connectPeripheral_options_(peripheral, None)
+        try:
+            name = peripheral.name() or "unnamed"
+            if '小米' in str(name) or 'xiaomi' in str(name).lower() or 'mi rc' in str(name).lower():
+                print(f"发现: {name}, 连接中...")
+                self.peripheral = peripheral
+                self.peripheral.setDelegate_(self)
+                manager.stopScan()
+                manager.connectPeripheral_options_(peripheral, None)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def centralManager_didConnectPeripheral_(self, manager, peripheral):
-        print(f"已连接: {peripheral.name() or 'unnamed'}")
-        voice_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_SERVICE)
-        peripheral.discoverServices_([voice_uuid])
+        try:
+            print(f"已连接: {peripheral.name() or 'unnamed'}")
+            self._connected = True
+            voice_uuid = objc.lookUpClass('CBUUID').UUIDWithString_(VOICE_SERVICE)
+            peripheral.discoverServices_([voice_uuid])
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     def centralManager_didFailToConnectPeripheral_error_(self, manager, peripheral, error):
-        print(f"连接失败: {error}")
+        try:
+            print(f"连接失败: {error}")
+            self._connected = False
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+    def centralManager_didDisconnectPeripheral_error_(self, manager, peripheral, error):
+        try:
+            print(f"{self._ts()} 🔌 BLE 断连: {peripheral.name() or 'unnamed'} error={error}", flush=True)
+            self._connected = False
+            self.mic_open = False
+            self._audio_started = False
+            self._session_end_time = time.monotonic()
+            if self.audio_output:
+                self.audio_output.stop()
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     # ── CBPeripheralDelegate ─────────────────────────────────
 
@@ -489,7 +527,6 @@ class VoiceCaptureDelegate(NSObject):
     def _handle_control(self, data: bytes):
         if not data:
             return
-        self._last_activity = time.monotonic()
         opcode = data[0]
         print(f"{self._ts()} 控制: opcode=0x{opcode:02X} len={len(data)} mic_open={self.mic_open}", flush=True)
 
@@ -502,10 +539,32 @@ class VoiceCaptureDelegate(NSObject):
                 # 仅在未开麦时 open; 已开麦时忽略, 避免重复 close+open 导致死循环
                 self._send_mic_open()
         elif opcode == 0x04:
+            now = time.monotonic()
+
+            # 循环抑制: 如果检测到 0x04/0x00 快速循环, 抑制 3s
+            if now < self._suppressed_until:
+                print(f"{self._ts()} ⚠️ 0x04 被抑制 (循环检测, 剩余 {self._suppressed_until - now:.1f}s)", flush=True)
+                return
+
+            # 冷却期: _end_speech 后 500ms 内忽略 0x04, 打断 0x04/0x00 快速循环
+            if self._session_end_time and now - self._session_end_time < 0.5:
+                print(f"{self._ts()} ⚠️ 冷却期内 0x04 被忽略 (距上次结束 {now - self._session_end_time:.3f}s)", flush=True)
+                return
+
             if self._audio_started:
                 # 同一会话内重复 0x04: 遥控器双发, 不能重置解码器/再跳帧
                 print(f"{self._ts()} ⚠️ 重复 AUDIO_START (audio_frames={self.audio_frames} pending={len(self._pending_audio)}), 忽略重置", flush=True)
             else:
+                # 循环检测: 记录此次启动, 清理 2s 前的记录
+                self._recent_starts.append(now)
+                self._recent_starts = [t for t in self._recent_starts if now - t < 2.0]
+                if len(self._recent_starts) >= 3:
+                    # 2s 内 3+ 次启动 = 循环, 抑制 3s
+                    print(f"{self._ts()} 🚨 检测到 0x04/0x00 循环 ({len(self._recent_starts)} 次/2s), 抑制 3s", flush=True)
+                    self._suppressed_until = now + 3.0
+                    self._recent_starts.clear()
+                    return
+
                 self._audio_started = True
                 print(f"{self._ts()} 🎤 音频流开始", flush=True)
                 self.decoder.reset(0, 0)
@@ -550,6 +609,7 @@ class VoiceCaptureDelegate(NSObject):
         self._pending_audio = bytearray()
         self._skip_frames = 0
         self._audio_started = False
+        self._session_end_time = time.monotonic()
         self.audio_frames = 0
         self.pcm_samples = 0
         self.noise_reducer = NoiseReducer()
@@ -558,9 +618,9 @@ class VoiceCaptureDelegate(NSObject):
         self._send_mic_close()
 
     def _handle_audio(self, data: bytes):
-        if not self.mic_open or self.caps is None:
+        if not self.mic_open or self.caps is None or not self._connected:
             return
-        self._last_activity = time.monotonic()
+        self._last_audio_time = time.monotonic()
         frame_size = self.caps.get("frame_size", 120)
         pending = getattr(self, '_pending_audio', bytearray())
         pending.extend(data)
@@ -625,17 +685,25 @@ class VoiceCaptureDelegate(NSObject):
     def _watchdog(self):
         """看门狗: 检测异常状态并强制结束会话。
 
-        - 静音超时: mic_open 但超过 2s 没收到任何音频/控制 → 0x00 可能丢了
-        - 会话超时: mic_open 超过 30s → 可能卡死, 强制结束
+        - 断连: BLE 已断连但 mic_open 还没清 → 强制清理
+        - 音频静音超时: mic_open 但超过 2s 没收到音频帧 → 0x00 可能丢了
+          (control 消息不算, 因为遥控器可能疯狂发 0x04/0x00 但没有真实音频)
+        - 会话超时: mic_open 超过 15s → 可能卡死, 强制结束
         """
         if not self.mic_open:
             return
         now = time.monotonic()
-        silence_timeout = 2.0    # 2s 无活动
-        max_session = 30.0       # 最长 30s
 
-        if now - self._last_activity > silence_timeout:
-            print(f"{self._ts()} 🚨 看门狗: 静音超时 ({now - self._last_activity:.1f}s 无活动), 强制结束", flush=True)
+        if not self._connected:
+            print(f"{self._ts()} 🚨 看门狗: BLE 已断连, 强制清理", flush=True)
+            self._end_speech()
+            return
+
+        audio_silence = 2.0    # 2s 无音频帧
+        max_session = 15.0     # 最长 15s
+
+        if now - self._last_audio_time > audio_silence:
+            print(f"{self._ts()} 🚨 看门狗: 音频静音超时 ({now - self._last_audio_time:.1f}s 无音频), 强制结束", flush=True)
             self._end_speech()
         elif now - self._session_start > max_session:
             print(f"{self._ts()} 🚨 看门狗: 会话超时 ({now - self._session_start:.1f}s), 强制结束", flush=True)
