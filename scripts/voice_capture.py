@@ -323,6 +323,7 @@ class VoiceCaptureDelegate(NSObject):
         self.pcm_samples = 0
         self.stop_event = False
         self.started = False
+        self._end_speech_lock = threading.Lock()  # 保护 _end_speech 并发调用
         self._pending_audio = bytearray()
         self._skip_frames = 0
         self._audio_subscribed = False
@@ -336,6 +337,8 @@ class VoiceCaptureDelegate(NSObject):
         self._connected = False        # BLE 是否已连接
         self._recent_starts = []       # 近期 0x04 启动时间列表 (检测循环)
         self._suppressed_until = 0.0   # 检测到循环后抑制 0x04 直到此时间
+        self._watchdog_thread = None   # 看门狗线程
+        self._watchdog_stop = False    # 看门狗停止标志
         return self
 
     def _ts(self) -> str:
@@ -345,6 +348,10 @@ class VoiceCaptureDelegate(NSObject):
         self._verbose = verbose
         self.audio_output = AudioOutput(debug_wav=debug)
         self.manager = CoreBluetooth.CBCentralManager.alloc().initWithDelegate_queue_(self, None)
+        # 启动独立看门狗线程 (不受 runloop 阻塞影响)
+        self._watchdog_stop = False
+        self._watchdog_thread = threading.Thread(target=self._watchdog_loop, daemon=True)
+        self._watchdog_thread.start()
         print("正在初始化蓝牙...")
 
     def _send_mic_open(self):
@@ -584,38 +591,44 @@ class VoiceCaptureDelegate(NSObject):
             self._end_speech()
 
     def _end_speech(self):
-        """结束当前语音会话: 刷尾部、停输出、发 MIC_CLOSE。"""
-        self.mic_open = False
-        # 刷新尾部残留
-        pending = getattr(self, '_pending_audio', bytearray())
-        tail_frames = 0
-        if pending and self.caps:
-            frame_size = self.caps.get("frame_size", 120)
-            if len(pending) > 0:
-                pad_len = frame_size - len(pending) % frame_size
-                if pad_len < frame_size:
-                    pending.extend(b'\x00' * pad_len)
-                while len(pending) >= frame_size:
-                    frame = bytes(pending[:frame_size])
-                    del pending[:frame_size]
-                    samples = self.decoder.decode_bytes(frame)
-                    samples = self.noise_reducer.process(samples)
-                    samples = self.noise_gate.process(samples)
-                    samples = self._apply_gain(samples, 15.0)
-                    self.audio_output.write(samples)
-                    self.pcm_samples += len(samples)
-                    tail_frames += 1
-        print(f"{self._ts()} 尾部刷新: {tail_frames} 帧, pending={len(pending)} bytes", flush=True)
-        self._pending_audio = bytearray()
-        self._skip_frames = 0
-        self._audio_started = False
-        self._session_end_time = time.monotonic()
-        self.audio_frames = 0
-        self.pcm_samples = 0
-        self.noise_reducer = NoiseReducer()
-        self.noise_gate = NoiseGate()
-        self.audio_output.stop(drain=True)
-        self._send_mic_close()
+        """结束当前语音会话: 刷尾部、停输出、发 MIC_CLOSE。
+
+        可能在 BLE 回调线程或看门狗线程被调用, 用锁保护。
+        """
+        with self._end_speech_lock:
+            if not self.mic_open:
+                return  # 已被另一线程结束
+            self.mic_open = False
+            # 刷新尾部残留
+            pending = getattr(self, '_pending_audio', bytearray())
+            tail_frames = 0
+            if pending and self.caps:
+                frame_size = self.caps.get("frame_size", 120)
+                if len(pending) > 0:
+                    pad_len = frame_size - len(pending) % frame_size
+                    if pad_len < frame_size:
+                        pending.extend(b'\x00' * pad_len)
+                    while len(pending) >= frame_size:
+                        frame = bytes(pending[:frame_size])
+                        del pending[:frame_size]
+                        samples = self.decoder.decode_bytes(frame)
+                        samples = self.noise_reducer.process(samples)
+                        samples = self.noise_gate.process(samples)
+                        samples = self._apply_gain(samples, 15.0)
+                        self.audio_output.write(samples)
+                        self.pcm_samples += len(samples)
+                        tail_frames += 1
+            print(f"{self._ts()} 尾部刷新: {tail_frames} 帧, pending={len(pending)} bytes", flush=True)
+            self._pending_audio = bytearray()
+            self._skip_frames = 0
+            self._audio_started = False
+            self._session_end_time = time.monotonic()
+            self.audio_frames = 0
+            self.pcm_samples = 0
+            self.noise_reducer = NoiseReducer()
+            self.noise_gate = NoiseGate()
+            self.audio_output.stop(drain=True)
+            self._send_mic_close()
 
     def _handle_audio(self, data: bytes):
         if not self.mic_open or self.caps is None or not self._connected:
@@ -682,34 +695,44 @@ class VoiceCaptureDelegate(NSObject):
             "sample_rate": 16000 if selected_codec == 0x02 else 8000,
         }
 
-    def _watchdog(self):
-        """看门狗: 检测异常状态并强制结束会话。
+    def _watchdog_loop(self):
+        """独立看门狗线程: 不受 runloop 阻塞影响, 每 500ms 检查一次。
 
         - 断连: BLE 已断连但 mic_open 还没清 → 强制清理
-        - 音频静音超时: mic_open 但超过 2s 没收到音频帧 → 0x00 可能丢了
-          (control 消息不算, 因为遥控器可能疯狂发 0x04/0x00 但没有真实音频)
-        - 会话超时: mic_open 超过 15s → 可能卡死, 强制结束
+        - 音频静音: mic_open 但超过 1s 没收到音频帧 → 0x00 可能丢了
+        - 帧间隔退化: 帧间隔 > 500ms → BLE 连接严重退化, 强制结束
+        - 会话超时: mic_open 超过 10s → 强制结束
         """
-        if not self.mic_open:
-            return
-        now = time.monotonic()
+        while not self._watchdog_stop:
+            time.sleep(0.5)
+            if not self.mic_open:
+                continue
+            now = time.monotonic()
 
-        if not self._connected:
-            print(f"{self._ts()} 🚨 看门狗: BLE 已断连, 强制清理", flush=True)
-            self._end_speech()
-            return
+            if not self._connected:
+                print(f"{self._ts()} 🚨 看门狗: BLE 已断连, 强制清理", flush=True)
+                self._end_speech()
+                continue
 
-        audio_silence = 2.0    # 2s 无音频帧
-        max_session = 15.0     # 最长 15s
+            audio_silence = 1.0       # 1s 无音频帧 (正常间隔 15ms)
+            max_session = 10.0        # 最长 10s
+            max_frame_gap = 0.5       # 单帧间隔超过 500ms = BLE 退化
 
-        if now - self._last_audio_time > audio_silence:
-            print(f"{self._ts()} 🚨 看门狗: 音频静音超时 ({now - self._last_audio_time:.1f}s 无音频), 强制结束", flush=True)
-            self._end_speech()
-        elif now - self._session_start > max_session:
-            print(f"{self._ts()} 🚨 看门狗: 会话超时 ({now - self._session_start:.1f}s), 强制结束", flush=True)
-            self._end_speech()
+            silence = now - self._last_audio_time
+            session_dur = now - self._session_start
+
+            if silence > audio_silence:
+                print(f"{self._ts()} 🚨 看门狗: 音频静音超时 ({silence:.1f}s 无音频), 强制结束", flush=True)
+                self._end_speech()
+            elif session_dur > max_session:
+                print(f"{self._ts()} 🚨 看门狗: 会话超时 ({session_dur:.1f}s), 强制结束", flush=True)
+                self._end_speech()
 
     def _cleanup(self):
+        self._watchdog_stop = True
+        if self._watchdog_thread:
+            self._watchdog_thread.join(timeout=2)
+
         if self.mic_open:
             self._send_mic_close()
             self.mic_open = False
@@ -742,7 +765,6 @@ def main():
     deadline = time.time() + args.duration if args.duration > 0 else float('inf')
     while time.time() < deadline and not delegate.stop_event:
         NSRunLoop.currentRunLoop().runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.1))
-        delegate._watchdog()
 
     if not delegate.started:
         print("\n⚠️ 未能连接或启动语音服务")
