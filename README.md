@@ -42,7 +42,7 @@ python3 -u scripts/voice_capture.py
 ### 调试
 
 ```bash
-python3 -u scripts/voice_capture.py --debug  # 同时保存 voice_debug.wav
+python3 -u scripts/voice_capture.py --debug  # 同时保存 voice_raw.wav + voice_processed.wav
 python3 scripts/test_blackhole.py             # 测试 BlackHole 音频
 ```
 
