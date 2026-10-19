@@ -165,7 +165,7 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 自启开关 | 12/12 测试通过，App 已安装运行；自启生成 `~/Library/LaunchAgents/Xiaomi Remote.plist` 并通过 `plutil -lint` |
+| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 自启开关 | 18/18 测试通过，App 已安装运行；自启生成 `~/Library/LaunchAgents/Xiaomi Remote.plist` 并通过 `plutil -lint`；关闭窗口驻留与单实例唤起已验证 |
 | Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + `cargo build` | 14/14 测试通过（含 Linux 键映射），二进制链接成功 |
 | Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
 

@@ -540,6 +540,43 @@ mod tests {
     }
 
     #[test]
+    fn watchdog_ends_silent_session() {
+        let sink = Arc::new(MockSink::default());
+        let mut session = Session::new(sink);
+        session.on_control(&caps_payload());
+        session.on_control(&[0x08]);
+        session.on_control(&[0x04]);
+        session.on_audio(&[0x00; 120]);
+
+        let commands = session.tick(Instant::now() + Duration::from_secs(3));
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], SessionCommand::MicClose(_)));
+        assert_eq!(session.state(), SessionState::Closing);
+    }
+
+    #[test]
+    fn disconnect_ends_active_session() {
+        let sink = Arc::new(MockSink::default());
+        let mut session = Session::new(sink);
+        session.on_control(&caps_payload());
+        session.on_control(&[0x08]);
+        session.on_control(&[0x04]);
+        session.set_connected(false);
+
+        let commands = session.tick(Instant::now());
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], SessionCommand::MicClose(_)));
+    }
+
+    #[test]
+    fn legacy_caps_with_zero_codec_uses_fallback() {
+        let caps = Caps::parse(&[0x0B, 0x01, 0x00, 0x00, 0x03, 0x00, 0x78, 0x00, 0x00]).unwrap();
+        assert_eq!(caps.codecs, 3);
+        assert_eq!(caps.interaction, 3);
+        assert_eq!(caps.selected_codec, 2);
+    }
+
+    #[test]
     fn audio_before_streaming_is_ignored() {
         let sink = Arc::new(MockSink::default());
         let mut session = Session::new(sink.clone());

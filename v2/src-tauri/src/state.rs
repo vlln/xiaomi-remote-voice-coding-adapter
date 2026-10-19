@@ -450,3 +450,26 @@ pub fn show_window(app: &AppHandle) {
         let _ = window.set_focus();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_roundtrip_preserves_new_fields() {
+        let settings = Settings::default();
+        let text = serde_json::to_string(&settings).unwrap();
+        let parsed: Settings = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed.audio_device, settings.audio_device);
+        assert!(parsed.record_last_session);
+        assert!(parsed.key_map.voice_to_right_option);
+    }
+
+    #[test]
+    fn missing_settings_fields_use_defaults() {
+        let parsed: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(parsed.audio_device, audio::default_device_hint());
+        assert!(parsed.auto_start_engine);
+        assert!(parsed.key_map.home_to_escape);
+    }
+}

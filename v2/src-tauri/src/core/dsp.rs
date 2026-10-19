@@ -246,6 +246,17 @@ mod tests {
     }
 
     #[test]
+    fn gate_attenuates_quiet_frame_after_calibration() {
+        let mut gate = NoiseGate::new();
+        for _ in 0..NoiseGate::CALIBRATION_FRAMES {
+            gate.process(&[50, -50, 50, -50]);
+        }
+        let out = gate.process(&[10, -10, 10, -10]);
+        assert!(gate.gain() < 0.95);
+        assert!(out.iter().all(|s| s.abs() <= 10));
+    }
+
+    #[test]
     fn resampler_matches_python_reference() {
         let mut resampler = Resampler::new();
         assert_eq!(
