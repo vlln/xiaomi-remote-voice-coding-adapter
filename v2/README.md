@@ -119,6 +119,25 @@ cargo test --lib
 
 > 如果之前装过 Karabiner 并启用了遥控器规则，请先退出 Karabiner，避免它和 V2 的 `hidutil` 映射同时作用于同一个设备。
 
+## Windows / Linux 音频路由
+
+### Windows
+
+1. 安装 [VB-CABLE](https://vb-audio.com/Cable/)。
+2. App 的音频输出选择 **CABLE Input**。
+3. 在目标 App 里把麦克风设为 **CABLE Output**。
+
+### Linux（PipeWire / PulseAudio）
+
+```bash
+pactl load-module module-null-sink sink_name=xiaomi_remote \
+  sink_properties=device.description="Xiaomi Remote"
+```
+
+1. App 的音频输出选择 **Xiaomi Remote**。
+2. 在目标 App 里把麦克风设为 **Monitor of Xiaomi Remote**。
+3. 语音修饰键需要 `/dev/uinput` 写权限（见上方 udev 规则）。
+
 ## V1 与 V2 的关系
 
 - V1：`scripts/voice_capture.py` + Karabiner + 手动终端启动
