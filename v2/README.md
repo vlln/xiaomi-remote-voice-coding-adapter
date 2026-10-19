@@ -159,14 +159,14 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
 - V1：`scripts/voice_capture.py` + Karabiner + 手动终端启动
 - V2：`v2/` 下的 Tauri App，接管 BLE、音频、按键映射、托盘和自启
-- V1 的协议/音频实现是 V2 Rust 移植的参考；`tests/test_voice_capture.py` 仍可用于对照 V1 行为
+- V1 的协议/音频实现是 V2 Rust 移植的参考；`tests/test_voice_capture.py` 仍可用于对照 V1 行为，当前 **14/14 通过**，CI 的 `v1-tests` workflow 会持续验证
 
 ## 平台验证
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
 | macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 自启开关 | 18/18 测试通过，App 已安装运行；自启生成 `~/Library/LaunchAgents/Xiaomi Remote.plist` 并通过 `plutil -lint`；关闭窗口驻留与单实例唤起已验证 |
-| Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + `cargo build` | 14/14 测试通过（含 Linux 键映射），二进制链接成功 |
+| Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + `cargo build` + `.deb` 安装 | 14/14 测试通过；`.deb` 在干净容器中 `dpkg -l` 显示 `ii xiaomi-remote 2.0.0 arm64`，`ldd` 依赖全部解析 |
 | Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
 
 > Windows/Linux 目前只做了编译与链接验证，尚未在真实设备上验证 BLE/音频链路；macOS 已实机验证。
