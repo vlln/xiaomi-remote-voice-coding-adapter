@@ -571,7 +571,7 @@ function App() {
 
             {!snap.accessibility_trusted && (
               <button className="ghost" onClick={openAccessibility}>
-                打开辅助功能设置
+                打开键盘控制权限设置
               </button>
             )}
 
