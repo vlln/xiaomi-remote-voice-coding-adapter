@@ -5,6 +5,7 @@
 //! Privacy & Security → Accessibility.
 
 use std::ffi::c_void;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(target_os = "macos")]
 #[link(name = "ApplicationServices", kind = "framework")]
@@ -19,6 +20,9 @@ pub fn is_trusted() -> bool {
 }
 
 /// Ask macOS to show the Accessibility consent dialog (once per app).
+static PROMPTED: AtomicBool = AtomicBool::new(false);
+
+/// Ask macOS to show the Accessibility consent dialog (once per process).
 #[cfg(target_os = "macos")]
 pub fn request() -> bool {
     use core_foundation::base::TCFType;
@@ -26,6 +30,9 @@ pub fn request() -> bool {
     use core_foundation::dictionary::CFDictionary;
     use core_foundation::string::CFString;
 
+    if PROMPTED.swap(true, Ordering::Relaxed) {
+        return is_trusted();
+    }
     let options = CFDictionary::from_CFType_pairs(&[(
         CFString::new("AXTrustedCheckOptionPrompt"),
         CFBoolean::true_value(),

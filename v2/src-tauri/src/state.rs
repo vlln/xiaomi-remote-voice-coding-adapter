@@ -380,6 +380,14 @@ fn handle_engine_event(app: &AppHandle, event: EngineEvent) {
             }
             state.log("info", format!("状态: {new_state}"));
             let _ = app.emit("status", snapshot);
+            if new_state == "connected" {
+                // hidutil mappings are per-device and can be lost when the
+                // remote reconnects; re-apply after every successful connect.
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = apply_key_mapping(&app);
+                });
+            }
         }
         EngineEvent::Session(session) => {
             let mut status = state.status.lock();

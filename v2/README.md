@@ -90,6 +90,12 @@ pnpm tauri dev
 pnpm tauri build
 ```
 
+macOS 构建会用稳定的 `com.xiaomiremote.app` 做 ad-hoc 签名（`bundle.macOS.signingIdentity = "-"`），这样辅助功能授权在重新构建后更容易保留。如果授权仍然丢失，可以手动重签：
+
+```bash
+./scripts/sign-macos.sh
+```
+
 核心测试：
 
 ```bash
