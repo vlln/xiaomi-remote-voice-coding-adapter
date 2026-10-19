@@ -169,7 +169,7 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 自启开关 | 18/18 测试通过，App 已安装运行；自启生成 `~/Library/LaunchAgents/Xiaomi Remote.plist` 并通过 `plutil -lint`；关闭窗口驻留与单实例唤起已验证 |
+| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 自启开关 | 18/18 测试通过；App 已安装运行并显示 **5/5**、`macOS event tap`；自启/关闭驻留/单实例已验证 |
 | Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + `cargo build` + `.deb` 安装 | 14/14 测试通过；`.deb` 在干净容器中 `dpkg -l` 显示 `ii xiaomi-remote 2.0.0 arm64`，`ldd` 依赖全部解析 |
 | Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
 
@@ -189,7 +189,7 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 ## 已知限制
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
-- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的 F5；首次运行需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option 行为。
+- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的 F5。当前构建已授权并显示 5/5 / `macOS event tap`；如果重装或换签名后丢失授权，需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
 - Windows 默认只实现语音键（push-to-talk）的 `SendInput` 注入。Home/TV/返回可通过可选的 `interception` feature 启用，但需要安装 Interception 内核驱动，并把 `interception.dll` 放到 exe 同目录：
 
   ```bash
