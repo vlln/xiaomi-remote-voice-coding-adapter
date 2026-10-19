@@ -21,7 +21,7 @@ V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库�
 |---|---|---|---|
 | BLE 语音桥接 | ✅ 已实机验证 | ✅ 代码已抽象，待实机验证 | ✅ 代码已抽象，待实机验证 |
 | 虚拟麦克风输出 | BlackHole 2ch | VB-CABLE / Virtual Audio Cable | PipeWire / PulseAudio null sink |
-| 按键映射 | ✅ `hidutil` + EventTap | ✅ 语音键 SendInput（待实机验证）；Home/TV/返回待实现 | ✅ evdev grab + uinput 全键映射（已编译/测试，待实机验证） |
+| 按键映射 | ✅ `hidutil` + EventTap | ✅ 默认语音键；可选 `interception` feature 提供 Home/TV/返回（需驱动） | ✅ evdev grab + uinput 全键映射（已编译/测试，待实机验证） |
 | 菜单栏 / 托盘 | ✅ | ✅ | ✅ |
 | 开机自启 | ✅ 已生成并校验 LaunchAgent | ✅（plugin） | ✅（plugin） |
 | 录音回放 | ✅ | ✅ | ✅ |
@@ -190,7 +190,14 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
 - macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的 F5；首次运行需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option 行为。
-- Windows 目前只实现了语音键（push-to-talk）的 `SendInput` 注入；Home/TV/返回的设备级重映射仍需 HID hook/驱动。
+- Windows 默认只实现语音键（push-to-talk）的 `SendInput` 注入。Home/TV/返回可通过可选的 `interception` feature 启用，但需要安装 Interception 内核驱动，并把 `interception.dll` 放到 exe 同目录：
+
+  ```bash
+  pnpm tauri build -- --features interception
+  # 或者：cargo build --release --features interception
+  ```
+
+  未启用时界面上 Home/TV/返回开关会置灰。
 - Linux 已实现完整的 evdev grab + uinput 透传（语音/Home/TV/返回）。运行前需要能读 `/dev/input/event*`（`input` 组）并写 `/dev/uinput`：
 
   ```bash

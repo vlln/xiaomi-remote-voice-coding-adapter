@@ -52,6 +52,7 @@ type Snapshot = {
   platform: string;
   last_recording: string | null;
   accessibility_trusted: boolean;
+  key_mapping_full: boolean;
 };
 
 const number = new Intl.NumberFormat("zh-CN");
@@ -144,14 +145,16 @@ function Toggle({
   onChange,
   label,
   hint,
+  disabled,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
   hint?: string;
+  disabled?: boolean;
 }) {
   return (
-    <label className="toggle-row">
+    <label className={`toggle-row ${disabled ? "disabled" : ""}`}>
       <span>
         <span className="toggle-label">{label}</span>
         {hint && <span className="toggle-hint">{hint}</span>}
@@ -160,6 +163,7 @@ function Toggle({
         <input
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
         />
         <span className="knob" />
@@ -622,11 +626,13 @@ function App() {
               <Toggle
                 label="Home → Escape"
                 checked={draft.key_map.home_to_escape}
+                disabled={!snap.key_mapping_full}
                 onChange={(v) => patchKeys({ home_to_escape: v })}
               />
               <Toggle
                 label="TV → Backspace"
                 checked={draft.key_map.tv_to_backspace}
+                disabled={!snap.key_mapping_full}
                 onChange={(v) => patchKeys({ tv_to_backspace: v })}
               />
             </div>
@@ -635,6 +641,7 @@ function App() {
               <span>返回键（0xF1）</span>
               <select
                 value={draft.key_map.back_target}
+                disabled={!snap.key_mapping_full}
                 onChange={(e) =>
                   patchKeys({ back_target: e.target.value as BackTarget })
                 }
@@ -644,6 +651,12 @@ function App() {
                 <option value="escape">Escape</option>
               </select>
             </label>
+
+            {!snap.key_mapping_full && (
+              <p className="hint">
+                Windows 目前只支持语音键；Home / TV / 返回需要 Interception 类驱动。
+              </p>
+            )}
 
             <div className="button-row">
               <button className="ghost" onClick={applyKeys} disabled={busy}>

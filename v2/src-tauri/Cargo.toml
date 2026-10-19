@@ -9,6 +9,10 @@ edition = "2024"
 name = "xiaomi_remote_v2_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = []
+interception = ["dep:interception"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -47,6 +51,7 @@ core-graphics = "0.25"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+interception = { version = "0.1", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 evdev = "0.13"

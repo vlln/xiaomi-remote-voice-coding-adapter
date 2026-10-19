@@ -57,6 +57,10 @@ pub trait KeyMapper: Send + Sync {
     fn apply(&self, settings: &KeyMapSettings) -> Result<(), String>;
     fn clear(&self) -> Result<(), String>;
     fn supported(&self) -> bool;
+    /// Whether Home/TV/Back remapping works on this platform without extra drivers.
+    fn full_mapping(&self) -> bool {
+        true
+    }
 }
 
 pub fn create() -> Box<dyn KeyMapper> {
@@ -70,7 +74,7 @@ pub fn create() -> Box<dyn KeyMapper> {
     }
     #[cfg(target_os = "windows")]
     {
-        Box::new(windows::WindowsKeyMapper)
+        Box::new(windows::WindowsKeyMapper::new())
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
@@ -80,6 +84,9 @@ pub fn create() -> Box<dyn KeyMapper> {
 
 #[cfg(target_os = "linux")]
 mod linux;
+
+#[cfg(all(target_os = "windows", feature = "interception"))]
+mod windows_interception;
 
 #[cfg(target_os = "macos")]
 mod macos_tap;
@@ -201,27 +208,87 @@ mod macos {
 #[cfg(target_os = "windows")]
 mod windows {
     use super::voice_modifier;
-    use super::{KeyMapSettings, KeyMapper};
+    use super::{BackTarget, KeyMapSettings, KeyMapper};
 
-    pub struct WindowsKeyMapper;
+    pub struct WindowsKeyMapper {
+        #[cfg(feature = "interception")]
+        worker: parking_lot::Mutex<Option<super::windows_interception::Worker>>,
+    }
+
+    impl WindowsKeyMapper {
+        pub fn new() -> Self {
+            Self {
+                #[cfg(feature = "interception")]
+                worker: parking_lot::Mutex::new(None),
+            }
+        }
+
+        #[cfg(feature = "interception")]
+        fn stop_worker(&self) {
+            if let Some(worker) = self.worker.lock().take() {
+                worker.stop();
+            }
+        }
+    }
+
+    impl Default for WindowsKeyMapper {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 
     impl KeyMapper for WindowsKeyMapper {
         fn backend(&self) -> &'static str {
-            "Windows SendInput (voice)"
+            if cfg!(feature = "interception") {
+                "Windows Interception"
+            } else {
+                "Windows SendInput (voice)"
+            }
         }
 
         fn supported(&self) -> bool {
             true
         }
 
+        fn full_mapping(&self) -> bool {
+            cfg!(feature = "interception")
+        }
+
         fn apply(&self, settings: &KeyMapSettings) -> Result<(), String> {
-            // Voice push-to-talk works via SendInput; Home/TV/back remapping
-            // still needs a per-device HID hook/driver.
             voice_modifier::set_enabled(settings.voice_to_right_option);
+
+            #[cfg(feature = "interception")]
+            {
+                self.stop_worker();
+                let wants_remap = settings.home_to_escape
+                    || settings.tv_to_backspace
+                    || settings.back_target != BackTarget::None;
+                if wants_remap {
+                    match super::windows_interception::start(settings.clone()) {
+                        Ok(worker) => *self.worker.lock() = Some(worker),
+                        Err(err) => {
+                            tracing::warn!(%err, "cannot start Interception key mapper");
+                        }
+                    }
+                }
+            }
+
+            #[cfg(not(feature = "interception"))]
+            if settings.home_to_escape
+                || settings.tv_to_backspace
+                || settings.back_target != BackTarget::None
+            {
+                tracing::warn!(
+                    "Windows Home/TV/Back mapping needs the optional `interception` feature and driver; only voice is active"
+                );
+            }
+
             Ok(())
         }
 
         fn clear(&self) -> Result<(), String> {
+            #[cfg(feature = "interception")]
+            self.stop_worker();
             voice_modifier::set(false);
             Ok(())
         }

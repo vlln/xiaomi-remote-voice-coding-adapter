@@ -14,6 +14,7 @@ V2 是 Tauri 2 + Rust 的跨平台重写；V1 Python 脚本保持原样。
 - macOS 设备级按键映射：`hidutil` + EventTap，语音键由 ATVV 会话驱动右 Option
 - Linux 设备级按键映射：evdev grab + uinput 全键透传
 - Windows 语音键 `SendInput` 修饰键注入
+- 可选 Windows `interception` feature：Interception 驱动的设备级 Home/TV/返回映射
 - 开机自启（LaunchAgent / 登录项 / systemd 用户级，经 Tauri plugin）
 - 关闭窗口驻留菜单栏、单实例唤起
 - 本地打包：macOS `.app` / `.dmg`、Linux `.deb`
@@ -23,7 +24,7 @@ V2 是 Tauri 2 + Rust 的跨平台重写；V1 Python 脚本保持原样。
 ### Known limitations
 
 - macOS 干净右 Option 需要 `Privacy & Security → Device Control and Data Access` 授权（密码解锁）；未授权时回退到 `hidutil` 的 F5+Option。
-- Windows 仅实现语音键；Home/TV/返回的设备级重映射需要 Interception 类驱动，暂未提供。
+- Windows 默认仅实现语音键；Home/TV/返回需要可选的 `interception` feature、Interception 驱动和 `interception.dll`。
 - Linux/Windows 的 BLE/音频链路只做了编译/链接验证，尚未在真实设备上验证。
 - 松键后约 0.3–0.5 秒的遥控器 ATVV 冷却仍在。
 - 只保留最近一次录音。

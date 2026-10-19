@@ -128,6 +128,7 @@ pub struct Snapshot {
     pub platform: String,
     pub last_recording: Option<String>,
     pub accessibility_trusted: bool,
+    pub key_mapping_full: bool,
 }
 
 pub struct EngineHandle {
@@ -200,6 +201,7 @@ impl AppState {
                 .as_ref()
                 .map(|path| path.display().to_string()),
             accessibility_trusted: crate::keys::accessibility::is_trusted(),
+            key_mapping_full: self.key_mapper.full_mapping(),
         }
     }
 }

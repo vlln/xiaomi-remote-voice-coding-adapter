@@ -65,6 +65,10 @@ jobs:
       - name: Core tests
         run: cargo test --lib --manifest-path src-tauri/Cargo.toml
 
+      - name: Optional Interception backend (Windows)
+        if: runner.os == 'Windows'
+        run: cargo check --features interception --manifest-path src-tauri/Cargo.toml
+
       - name: Build
         run: pnpm tauri build --bundles ${{ matrix.bundle }}
 
