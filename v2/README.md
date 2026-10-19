@@ -23,7 +23,7 @@ V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库�
 | 虚拟麦克风输出 | BlackHole 2ch | VB-CABLE / Virtual Audio Cable | PipeWire / PulseAudio null sink |
 | 按键映射 | ✅ `hidutil` + EventTap | ✅ 语音键 SendInput（待实机验证）；Home/TV/返回待实现 | ✅ evdev grab + uinput 全键映射（已编译/测试，待实机验证） |
 | 菜单栏 / 托盘 | ✅ | ✅ | ✅ |
-| 开机自启 | ✅ | ✅ | ✅ |
+| 开机自启 | ✅ 已生成并校验 LaunchAgent | ✅（plugin） | ✅（plugin） |
 | 录音回放 | ✅ | ✅ | ✅ |
 
 > V2.0.0 首先在 macOS 上跑通；Windows/Linux 的 BLE/音频层使用跨平台 crate（`btleplug` + `cpal`），但还需要在对应系统上做实机验证与按键后端。
@@ -165,7 +165,7 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 | 12/12 测试通过，App 已安装运行 |
+| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 自启开关 | 12/12 测试通过，App 已安装运行；自启生成 `~/Library/LaunchAgents/Xiaomi Remote.plist` 并通过 `plutil -lint` |
 | Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + `cargo build` | 14/14 测试通过（含 Linux 键映射），二进制链接成功 |
 | Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
 
