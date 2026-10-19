@@ -23,6 +23,7 @@ use crate::core::atvv::{
     VOICE_SERVICE, VOICE_TX,
 };
 use crate::core::AudioSink;
+use crate::keys::voice_modifier;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -220,6 +221,7 @@ async fn connect_and_stream(
         tokio::select! {
             _ = &mut *stop => {
                 session.on_disconnect();
+                voice_modifier::set(false);
                 cleanup(&peripheral, &audio, &control).await;
                 return Ok(());
             }
@@ -232,11 +234,16 @@ async fn connect_and_stream(
                             let _ = events.send(EngineEvent::Session(session.snapshot())).await;
                         } else if uuid == control.uuid {
                             let commands = session.on_control(&data.value);
+                            // Drive right Option from the actual mic session.
+                            // The remote often starts a session with 0x04
+                            // without sending a separate 0x08 key event.
+                            voice_modifier::set(session.snapshot().mic_open);
                             for command in commands {
                                 match command {
                                     SessionCommand::MicOpen(payload) => {
                                         if let Err(err) = write_packet(&peripheral, &tx, &payload).await {
                                             session.mic_open_failed();
+                                            voice_modifier::set(false);
                                             let _ = events.send(EngineEvent::Error { message: err }).await;
                                         }
                                     }
@@ -252,6 +259,7 @@ async fn connect_and_stream(
                     }
                     None => {
                         session.on_disconnect();
+                        voice_modifier::set(false);
                         cleanup(&peripheral, &audio, &control).await;
                         return Ok(());
                     }
@@ -259,6 +267,7 @@ async fn connect_and_stream(
             }
             _ = watchdog.tick() => {
                 let commands = session.tick(Instant::now());
+                voice_modifier::set(session.snapshot().mic_open);
                 for command in commands {
                     if let SessionCommand::MicClose(payload) = command {
                         if let Err(err) = write_packet(&peripheral, &tx, &payload).await {

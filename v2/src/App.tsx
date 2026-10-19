@@ -51,6 +51,7 @@ type Snapshot = {
   default_device: string;
   platform: string;
   last_recording: string | null;
+  accessibility_trusted: boolean;
 };
 
 const number = new Intl.NumberFormat("zh-CN");
@@ -221,6 +222,14 @@ function App() {
     gridRef.current?.scrollTo({ top: 0 });
   }, []);
 
+  // After the user grants Accessibility in System Settings, retry the tap
+  // automatically instead of making them press "应用映射" again.
+  useEffect(() => {
+    if (snap?.accessibility_trusted) {
+      invoke("apply_key_mapping").catch(() => {});
+    }
+  }, [snap?.accessibility_trusted]);
+
   useEffect(() => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -352,6 +361,14 @@ function App() {
     }
   }
 
+  async function openAccessibility() {
+    try {
+      await invoke("open_accessibility_settings");
+    } catch (error) {
+      setToast(String(error));
+    }
+  }
+
   async function openRecording() {
     try {
       await invoke("open_last_recording");
@@ -390,6 +407,13 @@ function App() {
       label: "遥控器已连接",
       ok: Boolean(status.device) && status.state === "connected",
       detail: status.device ?? "等待 BLE 连接",
+    },
+    {
+      label: "辅助功能权限",
+      ok: snap.accessibility_trusted,
+      detail: snap.accessibility_trusted
+        ? "已授权，可发送干净的右 Option"
+        : "未授权时只能回退到 F5+Option",
     },
     {
       label: "按键映射可用",
@@ -544,6 +568,12 @@ function App() {
                 {checklist.filter((item) => item.ok).length}/{checklist.length}
               </span>
             </div>
+
+            {!snap.accessibility_trusted && (
+              <button className="ghost" onClick={openAccessibility}>
+                打开辅助功能设置
+              </button>
+            )}
 
             <ul className="checklist">
               {checklist.map((item) => (

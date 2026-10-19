@@ -107,6 +107,7 @@ cargo test --lib
 
 2. 打开 App，确认「准备检查」四项全绿。
 3. 首次启动会请求蓝牙权限；允许后 App 会自动扫描/连接遥控器。
+   为了让语音键变成干净的右 Option，还需要在「系统设置 → 隐私与安全性 → **辅助功能**」中允许 Xiaomi Remote。
 4. 把系统输入或目标 App 的输入设为 **BlackHole 2ch**（或包含它的聚集设备）。
 5. 按语音键说话；界面会显示音频帧和采样数，松开后可以点「播放上次录音」验证。
 
@@ -121,6 +122,6 @@ cargo test --lib
 ## 已知限制
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
-- macOS `hidutil` 把普通键映射成修饰键时，底层事件可能仍保留源键码（f5）并附带 Option 修饰符；只监听 `flagsChanged` 的 App 可能识别不到。
+- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的 F5；首次运行需要在「系统设置 → 隐私与安全性 → 辅助功能」里允许 Xiaomi Remote。未授权时会退回 `hidutil` 的 F5+Option 行为。
 - Windows/Linux 按键映射后端尚未实现。
 - 只保留最近一次录音，文件位于系统 App Data 目录下的 `last_session.wav`。

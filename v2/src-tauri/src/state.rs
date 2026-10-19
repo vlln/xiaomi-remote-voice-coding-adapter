@@ -127,6 +127,7 @@ pub struct Snapshot {
     pub default_device: String,
     pub platform: String,
     pub last_recording: Option<String>,
+    pub accessibility_trusted: bool,
 }
 
 pub struct EngineHandle {
@@ -198,6 +199,7 @@ impl AppState {
                 .lock()
                 .as_ref()
                 .map(|path| path.display().to_string()),
+            accessibility_trusted: crate::keys::accessibility::is_trusted(),
         }
     }
 }
@@ -234,10 +236,17 @@ pub fn apply_key_mapping(app: &AppHandle) -> Result<(), String> {
     let settings = state.settings.lock().clone();
     match state.key_mapper.apply(&settings.key_map) {
         Ok(()) => {
-            state.log(
-                "info",
-                format!("按键映射已应用（{}）", state.key_mapper.backend()),
-            );
+            let backend = state.key_mapper.backend().to_string();
+            let supported = state.key_mapper.supported();
+            {
+                let mut status = state.status.lock();
+                status.key_backend = backend.clone();
+                status.key_supported = supported;
+                let snapshot = status.clone();
+                drop(status);
+                let _ = app.emit("status", snapshot);
+            }
+            state.log("info", format!("按键映射已应用（{backend}）"));
             Ok(())
         }
         Err(err) => {

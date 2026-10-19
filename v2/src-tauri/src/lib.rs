@@ -77,6 +77,11 @@ fn clear_key_mapping(app: AppHandle) {
 }
 
 #[tauri::command]
+fn open_accessibility_settings() {
+    keys::accessibility::open_settings();
+}
+
+#[tauri::command]
 fn open_last_recording(app: AppHandle) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let state = app.state::<AppState>();
@@ -192,6 +197,7 @@ pub fn run() {
             refresh_devices,
             apply_key_mapping,
             clear_key_mapping,
+            open_accessibility_settings,
             open_last_recording,
             set_launch_at_login
         ])

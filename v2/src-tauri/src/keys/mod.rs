@@ -7,6 +7,9 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod accessibility;
+pub mod voice_modifier;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BackTarget {
@@ -76,10 +79,17 @@ pub fn create() -> Box<dyn KeyMapper> {
 }
 
 #[cfg(target_os = "macos")]
+mod macos_tap;
+
+#[cfg(target_os = "macos")]
 mod macos {
     use std::process::Command;
 
-    use tracing::{debug, info};
+    use tracing::{debug, info, warn};
+
+    use super::accessibility;
+    use super::macos_tap;
+    use super::voice_modifier;
 
     use super::{BackTarget, KeyMapSettings, KeyMapper};
 
@@ -90,7 +100,11 @@ mod macos {
 
     impl KeyMapper for MacKeyMapper {
         fn backend(&self) -> &'static str {
-            "macOS hidutil"
+            if macos_tap::is_active() {
+                "macOS event tap"
+            } else {
+                "macOS hidutil"
+            }
         }
 
         fn supported(&self) -> bool {
@@ -101,7 +115,15 @@ mod macos {
             if settings.is_empty() {
                 return self.clear();
             }
-            let mappings = build_mappings(settings);
+            if settings.voice_to_right_option && !accessibility::is_trusted() {
+                accessibility::request();
+                warn!(
+                    "Accessibility permission is required for a clean right Option;                      falling back to hidutil F5+Option until it is granted"
+                );
+            }
+            voice_modifier::set_enabled(settings.voice_to_right_option);
+            let tap_active = settings.voice_to_right_option && macos_tap::ensure_tap();
+            let mappings = build_mappings(settings, tap_active);
             let json = serde_json::json!({ "UserKeyMapping": mappings }).to_string();
             let matching = format!(r#"{{"VendorID":{VENDOR_ID},"ProductID":{PRODUCT_ID}}}"#);
             info!(mappings = %json, "applying macOS key mapping");
@@ -126,6 +148,7 @@ mod macos {
         }
 
         fn clear(&self) -> Result<(), String> {
+            voice_modifier::set(false);
             let matching = format!(r#"{{"VendorID":{VENDOR_ID},"ProductID":{PRODUCT_ID}}}"#);
             let output = Command::new("/usr/bin/hidutil")
                 .args([
@@ -147,11 +170,18 @@ mod macos {
         }
     }
 
-    fn build_mappings(settings: &KeyMapSettings) -> Vec<serde_json::Value> {
+    fn build_mappings(
+        settings: &KeyMapSettings,
+        tap_active: bool,
+    ) -> Vec<serde_json::Value> {
         let mut mappings = Vec::new();
-        if settings.voice_to_right_option {
-            mappings.push(mapping(0x3E, 0xE6)); // F5 (voice) -> Right Option
+        // With the event tap active, the voice key is driven by the ATVV
+        // session engine and F5 is swallowed. Without Accessibility, fall back
+        // to the old hidutil F5 -> right Option mapping.
+        if settings.voice_to_right_option && !tap_active {
+            mappings.push(mapping(0x3E, 0xE6));
         }
+
         if settings.home_to_escape {
             mappings.push(mapping(0x4A, 0x29)); // Home -> Escape
         }
