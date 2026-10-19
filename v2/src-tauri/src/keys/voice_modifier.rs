@@ -21,10 +21,7 @@ pub fn set_enabled(enabled: bool) {
     }
 }
 
-pub fn is_enabled() -> bool {
-    ENABLED.load(Ordering::Relaxed)
-}
-
+#[cfg(target_os = "macos")]
 pub fn is_down() -> bool {
     DOWN.load(Ordering::Relaxed)
 }

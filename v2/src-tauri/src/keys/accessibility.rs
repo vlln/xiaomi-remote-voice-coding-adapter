@@ -56,9 +56,4 @@ pub fn is_trusted() -> bool {
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn request() -> bool {
-    true
-}
-
-#[cfg(not(target_os = "macos"))]
 pub fn open_settings() {}

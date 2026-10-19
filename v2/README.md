@@ -144,6 +144,16 @@ pactl load-module module-null-sink sink_name=xiaomi_remote \
 - V2：`v2/` 下的 Tauri App，接管 BLE、音频、按键映射、托盘和自启
 - V1 的协议/音频实现是 V2 Rust 移植的参考；`tests/test_voice_capture.py` 仍可用于对照 V1 行为
 
+## 平台验证
+
+| 平台 | 验证方式 | 结果 |
+|---|---|---|
+| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 | 12/12 测试通过，App 已安装运行 |
+| Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + `cargo build` | 12/12 测试通过，二进制链接成功 |
+| Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
+
+> Windows/Linux 目前只做了编译与链接验证，尚未在真实设备上验证 BLE/音频链路；macOS 已实机验证。
+
 ## 已知限制
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
