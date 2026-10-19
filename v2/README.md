@@ -30,6 +30,8 @@ Linux 使用 `release/` 下的 `.deb`（2.1.0 由 CI/tag 构建），Windows 使
 - 每次语音会话保存 `last_session.wav`，可在界面里一键回放
 - 自动重连、看门狗、单实例、配置持久化
 
+![按键录制](docs/capture.png)
+
 ## 平台支持（V2.1.0）
 
 | 能力 | macOS | Windows | Linux |
