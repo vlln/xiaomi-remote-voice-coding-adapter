@@ -1,14 +1,36 @@
 //! Device-level key remapping.
 //!
-//! macOS uses `hidutil`'s `UserKeyMapping` which is scoped to the remote's
-//! vendor/product ID and needs no driver. Linux/Windows backends are separated
-//! so the UI can report a platform-specific capability instead of failing the
-//! whole app.
+//! Bindings are stored as USB HID usages and can be recorded from the UI.
+//! macOS applies them with `hidutil`'s `UserKeyMapping` scoped to the remote's
+//! vendor/product ID; Linux uses evdev grab + uinput; Windows uses SendInput and
+//! an optional Interception backend.
 
 use serde::{Deserialize, Serialize};
 
 pub mod accessibility;
+pub mod capture;
+pub mod usage;
 pub mod voice_modifier;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KeySource {
+    pub usage: u16,
+    #[serde(default)]
+    pub name: String,
+}
+
+impl KeySource {
+    pub fn new(usage: u16) -> Self {
+        Self {
+            usage,
+            name: usage::usage_name(usage),
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.usage != 0
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -30,6 +52,30 @@ pub struct KeyMapSettings {
     pub home_to_escape: bool,
     pub tv_to_backspace: bool,
     pub back_target: BackTarget,
+    #[serde(default = "default_voice_key")]
+    pub voice_key: KeySource,
+    #[serde(default = "default_home_key")]
+    pub home_key: KeySource,
+    #[serde(default = "default_tv_key")]
+    pub tv_key: KeySource,
+    #[serde(default = "default_back_key")]
+    pub back_key: KeySource,
+}
+
+fn default_voice_key() -> KeySource {
+    KeySource::new(usage::DEFAULT_VOICE_USAGE)
+}
+
+fn default_home_key() -> KeySource {
+    KeySource::new(usage::DEFAULT_HOME_USAGE)
+}
+
+fn default_tv_key() -> KeySource {
+    KeySource::new(usage::DEFAULT_TV_USAGE)
+}
+
+fn default_back_key() -> KeySource {
+    KeySource::new(usage::DEFAULT_BACK_USAGE)
 }
 
 impl Default for KeyMapSettings {
@@ -39,6 +85,10 @@ impl Default for KeyMapSettings {
             home_to_escape: true,
             tv_to_backspace: true,
             back_target: BackTarget::Backspace,
+            voice_key: default_voice_key(),
+            home_key: default_home_key(),
+            tv_key: default_tv_key(),
+            back_key: default_back_key(),
         }
     }
 }
@@ -132,7 +182,15 @@ mod macos {
                 );
             }
             voice_modifier::set_enabled(settings.voice_to_right_option);
-            let tap_active = settings.voice_to_right_option && macos_tap::ensure_tap();
+            let voice_keycode = super::usage::usage_to_macos_keycode(settings.voice_key.usage);
+            let tap_active = settings.voice_to_right_option
+                && voice_keycode.is_some()
+                && macos_tap::ensure_tap();
+            macos_tap::set_voice_keycode(if tap_active {
+                voice_keycode.unwrap_or(0)
+            } else {
+                0
+            });
             let mappings = build_mappings(settings, tap_active);
             let json = serde_json::json!({ "UserKeyMapping": mappings }).to_string();
             let matching = format!(r#"{{"VendorID":{VENDOR_ID},"ProductID":{PRODUCT_ID}}}"#);
@@ -179,20 +237,24 @@ mod macos {
         // With the event tap active, the voice key is driven by the ATVV
         // session engine and F5 is swallowed. Without Accessibility, fall back
         // to the old hidutil F5 -> right Option mapping.
-        if settings.voice_to_right_option && !tap_active {
-            mappings.push(mapping(0x3E, 0xE6));
+        if settings.voice_to_right_option && !tap_active && settings.voice_key.is_valid() {
+            mappings.push(mapping(settings.voice_key.usage as u32, 0xE6));
         }
 
-        if settings.home_to_escape {
-            mappings.push(mapping(0x4A, 0x29)); // Home -> Escape
+        if settings.home_to_escape && settings.home_key.is_valid() {
+            mappings.push(mapping(settings.home_key.usage as u32, 0x29)); // Escape
         }
-        if settings.tv_to_backspace {
-            mappings.push(mapping(0x35, 0x2A)); // `~ (TV) -> Backspace
+        if settings.tv_to_backspace && settings.tv_key.is_valid() {
+            mappings.push(mapping(settings.tv_key.usage as u32, 0x2A)); // Backspace
         }
-        match settings.back_target {
-            BackTarget::None => {}
-            BackTarget::Backspace => mappings.push(mapping(0xF1, 0x2A)),
-            BackTarget::Escape => mappings.push(mapping(0xF1, 0x29)),
+        if settings.back_key.is_valid() {
+            match settings.back_target {
+                BackTarget::None => {}
+                BackTarget::Backspace => {
+                    mappings.push(mapping(settings.back_key.usage as u32, 0x2A))
+                }
+                BackTarget::Escape => mappings.push(mapping(settings.back_key.usage as u32, 0x29)),
+            }
         }
         mappings
     }
@@ -317,5 +379,26 @@ mod unsupported {
         fn clear(&self) -> Result<(), String> {
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_settings_without_key_sources_get_defaults() {
+        let json = r#"{
+            "voice_to_right_option": true,
+            "home_to_escape": true,
+            "tv_to_backspace": true,
+            "back_target": "backspace"
+        }"#;
+        let parsed: KeyMapSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.voice_key.usage, usage::DEFAULT_VOICE_USAGE);
+        assert_eq!(parsed.home_key.usage, usage::DEFAULT_HOME_USAGE);
+        assert_eq!(parsed.tv_key.usage, usage::DEFAULT_TV_USAGE);
+        assert_eq!(parsed.back_key.usage, usage::DEFAULT_BACK_USAGE);
+        assert!(!parsed.voice_key.name.is_empty());
     }
 }

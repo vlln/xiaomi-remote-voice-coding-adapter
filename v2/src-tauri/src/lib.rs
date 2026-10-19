@@ -82,6 +82,24 @@ fn open_accessibility_settings() {
 }
 
 #[tauri::command]
+async fn capture_key() -> Result<keys::capture::CapturedKey, String> {
+    keys::capture::capture_next_key().await
+}
+
+#[tauri::command]
+fn cancel_key_capture() {
+    keys::capture::cancel();
+}
+
+#[tauri::command]
+fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn open_last_recording(app: AppHandle) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let state = app.state::<AppState>();
@@ -198,6 +216,9 @@ pub fn run() {
             apply_key_mapping,
             clear_key_mapping,
             open_accessibility_settings,
+            capture_key,
+            cancel_key_capture,
+            open_url,
             open_last_recording,
             set_launch_at_login
         ])

@@ -1,18 +1,20 @@
-//! Minimal macOS event tap used to turn the remote's voice key into a clean
-//! right-Option modifier.
+//! Narrow macOS event tap.
 //!
-//! `hidutil` alone can map F5 to the right-Option usage, but on macOS the
-//! resulting event may still carry the F5 keycode. This tap is deliberately
-//! narrow: `hidutil` maps only the remote's F5 to F18, then the tap turns F18
-//! into a `flagsChanged` event for right Option (keycode 61).
+//! It has two jobs:
+//! - swallow the configured voice key while an ATVV session is active, so the
+//!   target app only receives the right-Option modifier emitted by the session;
+//! - while the UI is recording a shortcut, swallow the next key and report its
+//!   keycode back to the capture command.
 //!
 //! The tap requires Accessibility permission. If it cannot be created, callers
-//! fall back to the plain `hidutil` F5 -> right Option mapping.
+//! fall back to the plain `hidutil` mapping.
 
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
+
+use tokio::sync::oneshot;
 
 use core_foundation::base::TCFType;
 use core_foundation::runloop::{CFRunLoop, kCFRunLoopCommonModes};
@@ -22,7 +24,10 @@ use core_graphics::event::{
 };
 use tracing::{debug, info, warn};
 
-const VOICE_KEYCODE: u16 = 96;
+static VOICE_KEYCODE: AtomicU16 = AtomicU16::new(96);
+static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
+static CAPTURE_CANCELLED: AtomicBool = AtomicBool::new(false);
+static CAPTURE_TX: parking_lot::Mutex<Option<oneshot::Sender<u16>>> = parking_lot::Mutex::new(None);
 
 static TAP_ACTIVE: AtomicBool = AtomicBool::new(false);
 static TAP_INIT: parking_lot::Mutex<Option<bool>> = parking_lot::Mutex::new(None);
@@ -43,6 +48,38 @@ pub fn ensure_tap() -> bool {
 
 pub fn is_active() -> bool {
     TAP_ACTIVE.load(Ordering::Relaxed)
+}
+
+pub fn set_voice_keycode(keycode: u16) {
+    VOICE_KEYCODE.store(keycode, Ordering::Relaxed);
+}
+
+pub async fn capture_next_key(timeout: Duration) -> Result<u16, String> {
+    if !is_active() && !ensure_tap() {
+        return Err("需要键盘控制权限才能录制按键".into());
+    }
+    if CAPTURE_ACTIVE.swap(true, Ordering::SeqCst) {
+        return Err("正在等待按键".into());
+    }
+
+    let (tx, rx) = oneshot::channel();
+    CAPTURE_CANCELLED.store(false, Ordering::SeqCst);
+    *CAPTURE_TX.lock() = Some(tx);
+    let result = tokio::time::timeout(timeout, rx).await;
+    CAPTURE_ACTIVE.store(false, Ordering::SeqCst);
+    CAPTURE_TX.lock().take();
+
+    match result {
+        Ok(Ok(keycode)) => Ok(keycode),
+        Ok(Err(_)) if CAPTURE_CANCELLED.load(Ordering::SeqCst) => Err("按键捕获已取消".into()),
+        Ok(Err(_)) => Err("按键捕获已取消".into()),
+        Err(_) => Err("等待按键超时，请重试".into()),
+    }
+}
+
+pub fn cancel_capture() {
+    CAPTURE_TX.lock().take();
+    CAPTURE_ACTIVE.store(false, Ordering::SeqCst);
 }
 
 fn start_tap() -> bool {
@@ -71,7 +108,21 @@ fn start_tap() -> bool {
                 }
                 let keycode =
                     event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE) as u16;
-                if keycode != VOICE_KEYCODE {
+                if CAPTURE_ACTIVE.load(Ordering::Relaxed) {
+                    // Swallow the captured key so it does not trigger a
+                    // shortcut in the app behind the capture sheet.
+                    if matches!(event_type, CGEventType::KeyDown) {
+                        if keycode == 53 {
+                            CAPTURE_CANCELLED.store(true, Ordering::SeqCst);
+                            CAPTURE_TX.lock().take();
+                        } else if let Some(tx) = CAPTURE_TX.lock().take() {
+                            let _ = tx.send(keycode);
+                        }
+                    }
+                    return CallbackResult::Drop;
+                }
+                let voice_keycode = VOICE_KEYCODE.load(Ordering::Relaxed);
+                if voice_keycode == 0 || keycode != voice_keycode {
                     return CallbackResult::Keep;
                 }
                 if !super::voice_modifier::is_down() {

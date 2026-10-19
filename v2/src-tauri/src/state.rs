@@ -129,6 +129,7 @@ pub struct Snapshot {
     pub last_recording: Option<String>,
     pub accessibility_trusted: bool,
     pub key_mapping_full: bool,
+    pub key_capture_supported: bool,
 }
 
 pub struct EngineHandle {
@@ -202,6 +203,7 @@ impl AppState {
                 .map(|path| path.display().to_string()),
             accessibility_trusted: crate::keys::accessibility::is_trusted(),
             key_mapping_full: self.key_mapper.full_mapping(),
+            key_capture_supported: cfg!(target_os = "macos"),
         }
     }
 }

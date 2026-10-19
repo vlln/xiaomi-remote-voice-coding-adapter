@@ -11,14 +11,11 @@ use std::time::Duration;
 use interception::raw;
 use tracing::{info, warn};
 
+use super::usage;
 use super::{BackTarget, KeyMapSettings};
 
 const SCAN_ESC: u16 = 0x01;
 const SCAN_BACKSPACE: u16 = 0x0E;
-const SCAN_GRAVE: u16 = 0x29;
-const SCAN_F5: u16 = 0x3F;
-const SCAN_HOME_E0: u16 = 0x47;
-const SCAN_BROWSER_BACK_E0: u16 = 0x6A;
 
 const STATE_E0: u16 = 0x02;
 
@@ -149,17 +146,28 @@ fn translate(
     mut stroke: raw::InterceptionKeyStroke,
     settings: &KeyMapSettings,
 ) -> Option<raw::InterceptionKeyStroke> {
-    if settings.voice_to_right_option && stroke.code == SCAN_F5 {
+    let voice = usage::usage_to_scancode(settings.voice_key.usage);
+    let home = usage::usage_to_scancode(settings.home_key.usage);
+    let tv = usage::usage_to_scancode(settings.tv_key.usage);
+    let back = usage::usage_to_scancode(settings.back_key.usage);
+    let is_e0 = stroke.state & STATE_E0 != 0;
+
+    if settings.voice_to_right_option
+        && voice.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
+    {
         // The ATVV engine injects right Alt through SendInput.
         return None;
     }
 
-    let is_e0 = stroke.state & STATE_E0 != 0;
-    let mapped = if is_e0 && stroke.code == SCAN_HOME_E0 && settings.home_to_escape {
+    let mapped = if settings.home_to_escape
+        && home.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
+    {
         Some(SCAN_ESC)
-    } else if stroke.code == SCAN_GRAVE && settings.tv_to_backspace {
+    } else if settings.tv_to_backspace
+        && tv.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
+    {
         Some(SCAN_BACKSPACE)
-    } else if is_e0 && stroke.code == SCAN_BROWSER_BACK_E0 {
+    } else if back.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0) {
         match settings.back_target {
             BackTarget::None => return None,
             BackTarget::Backspace => Some(SCAN_BACKSPACE),
@@ -190,13 +198,13 @@ mod tests {
     #[test]
     fn drops_voice_f5() {
         let settings = KeyMapSettings::default();
-        assert!(translate(stroke(SCAN_F5, 0), &settings).is_none());
+        assert!(translate(stroke(0x3F, 0), &settings).is_none());
     }
 
     #[test]
     fn maps_extended_home_to_escape() {
         let settings = KeyMapSettings::default();
-        let out = translate(stroke(SCAN_HOME_E0, STATE_E0), &settings).unwrap();
+        let out = translate(stroke(0x47, STATE_E0), &settings).unwrap();
         assert_eq!(out.code, SCAN_ESC);
         assert_eq!(out.state, 0);
     }
@@ -204,7 +212,7 @@ mod tests {
     #[test]
     fn maps_tv_grave_to_backspace() {
         let settings = KeyMapSettings::default();
-        let out = translate(stroke(SCAN_GRAVE, 0), &settings).unwrap();
+        let out = translate(stroke(0x29, 0), &settings).unwrap();
         assert_eq!(out.code, SCAN_BACKSPACE);
     }
 

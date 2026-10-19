@@ -17,6 +17,7 @@ use evdev::{AttributeSet, BusType, Device, EventType, InputEvent, InputId, KeyCo
 use parking_lot::Mutex;
 use tracing::{debug, info, warn};
 
+use super::usage;
 use super::voice_modifier;
 use super::{BackTarget, KeyMapSettings, KeyMapper};
 
@@ -181,25 +182,33 @@ fn build_virtual_keyboard(device: &Device) -> std::io::Result<VirtualDevice> {
 }
 
 fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEvent> {
+    let voice = usage::usage_to_evdev(settings.voice_key.usage).unwrap_or(KeyCode::KEY_F5.0);
+    let home = usage::usage_to_evdev(settings.home_key.usage).unwrap_or(KeyCode::KEY_HOME.0);
+    let tv = usage::usage_to_evdev(settings.tv_key.usage).unwrap_or(KeyCode::KEY_GRAVE.0);
+    let back = usage::usage_to_evdev(settings.back_key.usage).unwrap_or(KeyCode::KEY_BACK.0);
+
     let mut output = Vec::with_capacity(events.len());
     for event in events {
         if event.event_type() == EventType::KEY {
             let code = event.code();
             let value = event.value();
 
-            if settings.voice_to_right_option && code == KeyCode::KEY_F5.0 {
+            if settings.voice_to_right_option && code == voice {
                 // The ATVV engine emits the right-Alt modifier.
                 continue;
             }
-            if settings.home_to_escape && code == KeyCode::KEY_HOME.0 {
+            if settings.home_to_escape && code == home {
                 output.push(key_event(KeyCode::KEY_ESC.0, value));
                 continue;
             }
-            if settings.tv_to_backspace && code == KeyCode::KEY_GRAVE.0 {
+            if settings.tv_to_backspace && code == tv {
                 output.push(key_event(KeyCode::KEY_BACKSPACE.0, value));
                 continue;
             }
-            if code == KeyCode::KEY_BACK.0 || code == KeyCode::KEY_HOMEPAGE.0 {
+            if code == back
+                || (settings.back_key.usage == usage::DEFAULT_BACK_USAGE
+                    && code == KeyCode::KEY_HOMEPAGE.0)
+            {
                 match settings.back_target {
                     BackTarget::None => continue,
                     BackTarget::Backspace => {

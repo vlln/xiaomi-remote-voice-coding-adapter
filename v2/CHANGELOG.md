@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.0
+
+### Changed
+
+- 全新的侧边栏布局：概览 / 按键映射 / 音频 / 高级，减少仪表盘式的拥挤感
+- 按键映射改为「点击后按遥控器按键」录制，支持自定义语音 / Home / TV / 返回键
+- 按键修改即时保存并应用，不再需要手动点「应用映射」
+- 快速设置改为三步清单，直接提供安装 / 授权 / 启动入口
+- 开发服务器固定绑定 127.0.0.1，避免 macOS WebView 解析 localhost 失败
+
+### Internal
+
+- 按键绑定以 HID usage 存储，macOS / Linux / Windows 后端共享
+- 新增 `macos_keycode_to_usage` 反向表
+- 修复 Windows 可选 Interception 后端的按键状态保留
+
 ## 2.0.0
 
 V2 是 Tauri 2 + Rust 的跨平台重写；V1 Python 脚本保持原样。
