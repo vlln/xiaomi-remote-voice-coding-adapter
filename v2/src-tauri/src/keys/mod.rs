@@ -206,24 +206,29 @@ mod macos {
 
 #[cfg(target_os = "linux")]
 mod linux {
+    use super::voice_modifier;
     use super::{KeyMapSettings, KeyMapper};
 
     pub struct LinuxKeyMapper;
 
     impl KeyMapper for LinuxKeyMapper {
         fn backend(&self) -> &'static str {
-            "Linux evdev/uinput"
+            "Linux uinput (voice)"
         }
 
         fn supported(&self) -> bool {
-            false
+            true
         }
 
-        fn apply(&self, _settings: &KeyMapSettings) -> Result<(), String> {
-            Err("Linux key mapping is not implemented yet; use keyd/evdev rules for now".into())
+        fn apply(&self, settings: &KeyMapSettings) -> Result<(), String> {
+            // Voice push-to-talk works today; Home/TV/back remapping still
+            // needs a full evdev grab + uinput passthrough.
+            voice_modifier::set_enabled(settings.voice_to_right_option);
+            Ok(())
         }
 
         fn clear(&self) -> Result<(), String> {
+            voice_modifier::set(false);
             Ok(())
         }
     }
@@ -231,24 +236,29 @@ mod linux {
 
 #[cfg(target_os = "windows")]
 mod windows {
+    use super::voice_modifier;
     use super::{KeyMapSettings, KeyMapper};
 
     pub struct WindowsKeyMapper;
 
     impl KeyMapper for WindowsKeyMapper {
         fn backend(&self) -> &'static str {
-            "Windows Interception (not enabled)"
+            "Windows SendInput (voice)"
         }
 
         fn supported(&self) -> bool {
-            false
+            true
         }
 
-        fn apply(&self, _settings: &KeyMapSettings) -> Result<(), String> {
-            Err("Windows key mapping requires the Interception driver; not enabled in this build".into())
+        fn apply(&self, settings: &KeyMapSettings) -> Result<(), String> {
+            // Voice push-to-talk works via SendInput; Home/TV/back remapping
+            // still needs a per-device HID hook/driver.
+            voice_modifier::set_enabled(settings.voice_to_right_option);
+            Ok(())
         }
 
         fn clear(&self) -> Result<(), String> {
+            voice_modifier::set(false);
             Ok(())
         }
     }

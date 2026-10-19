@@ -21,7 +21,7 @@ V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库�
 |---|---|---|---|
 | BLE 语音桥接 | ✅ 已实机验证 | ✅ 代码已抽象，待实机验证 | ✅ 代码已抽象，待实机验证 |
 | 虚拟麦克风输出 | BlackHole 2ch | VB-CABLE / Virtual Audio Cable | PipeWire / PulseAudio null sink |
-| 按键映射 | ✅ `hidutil` | ⚠️ 待实现（Interception 驱动方案） | ⚠️ 待实现（evdev + uinput） |
+| 按键映射 | ✅ `hidutil` + EventTap | ✅ 语音键 SendInput（待实机验证）；Home/TV/返回待实现 | ✅ 语音键 uinput（待实机验证）；Home/TV/返回待实现 |
 | 菜单栏 / 托盘 | ✅ | ✅ | ✅ |
 | 开机自启 | ✅ | ✅ | ✅ |
 | 录音回放 | ✅ | ✅ | ✅ |
@@ -129,5 +129,13 @@ cargo test --lib
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
 - macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的 F5；首次运行需要在「系统设置 → 隐私与安全性 → 辅助功能」里允许 Xiaomi Remote。未授权时会退回 `hidutil` 的 F5+Option 行为。
-- Windows/Linux 按键映射后端尚未实现。
+- Windows/Linux 目前只实现了语音键（push-to-talk）的修饰键注入：Windows 用 `SendInput`，Linux 用 `/dev/uinput`；Home/TV/返回的设备级重映射仍需各自的 HID 抓取层。
+- Linux 需要在 `/dev/uinput` 上有写权限（常见做法是把用户加入 `input` 组，或加一条 udev 规则）：
+
+  ```bash
+  sudo tee /etc/udev/rules.d/99-xiaomi-remote.rules <<'RULE'
+  KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+  RULE
+  sudo udevadm control --reload-rules && sudo udevadm trigger
+  ```
 - 只保留最近一次录音，文件位于系统 App Data 目录下的 `last_session.wav`。

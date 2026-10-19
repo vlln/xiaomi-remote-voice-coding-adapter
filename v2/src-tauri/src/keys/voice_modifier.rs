@@ -5,8 +5,9 @@
 //! engine therefore drives the modifier directly when it sees `0x08`
 //! (voice-key down) and the end of the session.
 //!
-//! On macOS this posts a `flagsChanged` event for keycode 61. Other platforms
-//! are no-ops until their native modifier backends land.
+//! macOS posts a `flagsChanged` event (keycode 61). Windows uses `SendInput`
+//! with a virtual right-menu key; Linux creates a tiny uinput keyboard and
+//! emits `KEY_RIGHTALT`.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -63,5 +64,90 @@ fn post(down: bool) {
     tracing::debug!(down, "posted right Option");
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn post(down: bool) {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
+        VK_RMENU,
+    };
+
+    let input = INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: VK_RMENU,
+                wScan: 0,
+                dwFlags: if down {
+                    KEYBD_EVENT_FLAGS(0)
+                } else {
+                    KEYEVENTF_KEYUP
+                },
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    };
+    let sent = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
+    if sent == 0 {
+        tracing::warn!("SendInput failed for right Alt");
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn post(down: bool) {
+    use std::fs::{File, OpenOptions};
+    use std::sync::OnceLock;
+
+    use input_linux::uinput::UInputHandle;
+    use input_linux::{
+        sys::input_event, EventKind, EventTime, InputEvent, InputId, Key, KeyEvent, KeyState,
+    };
+    use parking_lot::Mutex;
+
+    static DEVICE: OnceLock<Mutex<Option<UInputHandle<File>>>> = OnceLock::new();
+
+    let device = DEVICE.get_or_init(|| {
+        let created = (|| -> std::io::Result<UInputHandle<File>> {
+            let file = OpenOptions::new().write(true).open("/dev/uinput")?;
+            let handle = UInputHandle::new(file);
+            handle.set_evbit(EventKind::Key)?;
+            handle.set_keybit(Key::RightAlt)?;
+            handle.create(
+                &InputId::default(),
+                b"Xiaomi Remote Voice Modifier",
+                0,
+                &[],
+            )?;
+            Ok(handle)
+        })();
+        match created {
+            Ok(handle) => {
+                tracing::info!("uinput voice modifier ready");
+                Mutex::new(Some(handle))
+            }
+            Err(err) => {
+                tracing::warn!(%err, "cannot create /dev/uinput voice modifier");
+                Mutex::new(None)
+            }
+        }
+    });
+
+    let guard = device.lock();
+    let Some(handle) = guard.as_ref() else {
+        return;
+    };
+    let event = KeyEvent::new(
+        EventTime::new(0, 0),
+        Key::RightAlt,
+        KeyState::pressed(down),
+    );
+    let raw: input_event = unsafe {
+        std::mem::transmute::<InputEvent, input_event>(InputEvent::from(event))
+    };
+    if let Err(err) = handle.write(&[raw]) {
+        tracing::warn!(%err, "uinput write failed");
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 fn post(_down: bool) {}
