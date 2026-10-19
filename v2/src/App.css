@@ -318,7 +318,7 @@ button:disabled {
   box-shadow:
     0 14px 40px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  padding: 20px;
+  padding: 18px;
   backdrop-filter: blur(14px);
 }
 
@@ -356,7 +356,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 8px 2px 16px;
+  padding: 4px 2px 12px;
 }
 
 .remote-orb {
@@ -409,7 +409,7 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
@@ -492,7 +492,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 9px 0;
+  padding: 7px 0;
   cursor: pointer;
 }
 

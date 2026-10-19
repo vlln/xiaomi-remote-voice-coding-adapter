@@ -521,6 +521,25 @@ mod tests {
     }
 
     #[test]
+    fn new_voice_press_rearms_from_closing() {
+        let sink = Arc::new(MockSink::default());
+        let mut session = Session::new(sink);
+        assert!(session.on_control(&caps_payload()).is_empty());
+        assert_eq!(session.on_control(&[0x08]).len(), 1);
+        assert!(session.on_control(&[0x04]).is_empty());
+        session.on_audio(&[0x00; 120]);
+        assert_eq!(session.on_control(&[0x00]).len(), 1);
+        assert_eq!(session.state(), SessionState::Closing);
+
+        // A real key press must not be swallowed by the previous session's
+        // residual control packets.
+        let commands = session.on_control(&[0x08]);
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(&commands[0], SessionCommand::MicOpen(p) if p == &[0x0C, 0x00]));
+        assert_eq!(session.state(), SessionState::Armed);
+    }
+
+    #[test]
     fn audio_before_streaming_is_ignored() {
         let sink = Arc::new(MockSink::default());
         let mut session = Session::new(sink.clone());

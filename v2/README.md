@@ -4,6 +4,8 @@
 
 V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库根目录作为参考实现。
 
+![Xiaomi Remote V2](docs/screenshot.png)
+
 ## 功能
 
 - 通过 BLE 连接遥控器，接收 ATVV 语音流

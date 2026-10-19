@@ -173,6 +173,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -214,6 +215,10 @@ function App() {
       window.clearInterval(timer);
       unlisteners.forEach((unlisten) => unlisten());
     };
+  }, []);
+
+  useEffect(() => {
+    gridRef.current?.scrollTo({ top: 0 });
   }, []);
 
   useEffect(() => {
@@ -431,7 +436,7 @@ function App() {
         </div>
       )}
 
-      <main className="grid">
+      <main className="grid" ref={gridRef}>
         <section className="column">
           <article className="card device-card">
             <div className="card-head">
@@ -532,6 +537,43 @@ function App() {
           <article className="card">
             <div className="card-head">
               <div className="card-title">
+                <Icon name="settings" />
+                <h2>准备检查</h2>
+              </div>
+              <span className="mini-pill idle">
+                {checklist.filter((item) => item.ok).length}/{checklist.length}
+              </span>
+            </div>
+
+            <ul className="checklist">
+              {checklist.map((item) => (
+                <li key={item.label}>
+                  <span className={`check ${item.ok ? "ok" : "bad"}`}>
+                    <Icon name={item.ok ? "check" : "x"} size={13} />
+                  </span>
+                  <span>
+                    <span className="check-label">{item.label}</span>
+                    <span className="check-detail">{item.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="login-row">
+              <Toggle
+                label="登录时自动启动"
+                hint="通过系统登录项启动 App"
+                checked={draft.launch_at_login}
+                onChange={toggleLogin}
+              />
+            </div>
+          </article>
+        </section>
+
+        <section className="column">
+          <article className="card">
+            <div className="card-head">
+              <div className="card-title">
                 <Icon name="keyboard" />
                 <h2>按键映射</h2>
               </div>
@@ -580,43 +622,6 @@ function App() {
               <button className="ghost danger" onClick={clearKeys} disabled={busy}>
                 清除
               </button>
-            </div>
-          </article>
-        </section>
-
-        <section className="column">
-          <article className="card">
-            <div className="card-head">
-              <div className="card-title">
-                <Icon name="settings" />
-                <h2>准备检查</h2>
-              </div>
-              <span className="mini-pill idle">
-                {checklist.filter((item) => item.ok).length}/{checklist.length}
-              </span>
-            </div>
-
-            <ul className="checklist">
-              {checklist.map((item) => (
-                <li key={item.label}>
-                  <span className={`check ${item.ok ? "ok" : "bad"}`}>
-                    <Icon name={item.ok ? "check" : "x"} size={13} />
-                  </span>
-                  <span>
-                    <span className="check-label">{item.label}</span>
-                    <span className="check-detail">{item.detail}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="login-row">
-              <Toggle
-                label="登录时自动启动"
-                hint="通过系统登录项启动 App"
-                checked={draft.launch_at_login}
-                onChange={toggleLogin}
-              />
             </div>
           </article>
 

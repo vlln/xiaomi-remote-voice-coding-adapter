@@ -33,6 +33,7 @@ async fn update_settings(app: AppHandle, settings: Settings) -> Result<Snapshot,
         let state = app.state::<AppState>();
         state.engine.lock().is_some()
     };
+    let previous = app.state::<AppState>().settings.lock().clone();
     state::save_settings(&app, &settings)?;
     {
         let state = app.state::<AppState>();
@@ -48,7 +49,7 @@ async fn update_settings(app: AppHandle, settings: Settings) -> Result<Snapshot,
             .log("warn", format!("按键映射未应用: {err}"));
     }
     let _ = state::set_launch_at_login(&app, settings.launch_at_login).await;
-    if was_running {
+    if was_running && previous.audio_device != settings.audio_device {
         state::stop_engine(&app).await?;
         state::start_engine(&app).await?;
     }
