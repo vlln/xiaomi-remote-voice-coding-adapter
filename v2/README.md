@@ -138,6 +138,23 @@ pactl load-module module-null-sink sink_name=xiaomi_remote \
 2. 在目标 App 里把麦克风设为 **Monitor of Xiaomi Remote**。
 3. 语音修饰键需要 `/dev/uinput` 写权限（见上方 udev 规则）。
 
+### Linux 安装包（本地构建）
+
+在 Debian bookworm arm64 容器中已实际构建出安装包：
+
+```text
+release/Xiaomi Remote_2.0.0_arm64.deb   (3.5 MB)
+```
+
+安装：
+
+```bash
+sudo dpkg -i "Xiaomi Remote_2.0.0_arm64.deb"
+sudo apt-get install -f   # 补齐依赖
+```
+
+x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
+
 ## V1 与 V2 的关系
 
 - V1：`scripts/voice_capture.py` + Karabiner + 手动终端启动
