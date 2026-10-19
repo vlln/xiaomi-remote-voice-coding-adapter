@@ -92,35 +92,27 @@ fn post(down: bool) {
 
 #[cfg(target_os = "linux")]
 fn post(down: bool) {
-    use std::fs::{File, OpenOptions};
     use std::sync::OnceLock;
 
-    use input_linux::uinput::UInputHandle;
-    use input_linux::{
-        sys::input_event, EventKind, EventTime, InputEvent, InputId, Key, KeyEvent, KeyState,
-    };
+    use evdev::uinput::VirtualDevice;
+    use evdev::{AttributeSet, EventType, InputEvent, KeyCode};
     use parking_lot::Mutex;
 
-    static DEVICE: OnceLock<Mutex<Option<UInputHandle<File>>>> = OnceLock::new();
+    static DEVICE: OnceLock<Mutex<Option<VirtualDevice>>> = OnceLock::new();
 
     let device = DEVICE.get_or_init(|| {
-        let created = (|| -> std::io::Result<UInputHandle<File>> {
-            let file = OpenOptions::new().write(true).open("/dev/uinput")?;
-            let handle = UInputHandle::new(file);
-            handle.set_evbit(EventKind::Key)?;
-            handle.set_keybit(Key::RightAlt)?;
-            handle.create(
-                &InputId::default(),
-                b"Xiaomi Remote Voice Modifier",
-                0,
-                &[],
-            )?;
-            Ok(handle)
+        let mut keys = AttributeSet::<KeyCode>::new();
+        keys.insert(KeyCode::KEY_RIGHTALT);
+        let created = (|| -> std::io::Result<VirtualDevice> {
+            VirtualDevice::builder()?
+                .name("Xiaomi Remote Voice Modifier")
+                .with_keys(&keys)?
+                .build()
         })();
         match created {
-            Ok(handle) => {
+            Ok(device) => {
                 tracing::info!("uinput voice modifier ready");
-                Mutex::new(Some(handle))
+                Mutex::new(Some(device))
             }
             Err(err) => {
                 tracing::warn!(%err, "cannot create /dev/uinput voice modifier");
@@ -129,20 +121,15 @@ fn post(down: bool) {
         }
     });
 
-    let guard = device.lock();
-    let Some(handle) = guard.as_ref() else {
-        return;
-    };
-    let event = KeyEvent::new(
-        EventTime::new(0, 0),
-        Key::RightAlt,
-        KeyState::pressed(down),
-    );
-    let raw: input_event = unsafe {
-        std::mem::transmute::<InputEvent, input_event>(InputEvent::from(event))
-    };
-    if let Err(err) = handle.write(&[raw]) {
-        tracing::warn!(%err, "uinput write failed");
+    if let Some(device) = device.lock().as_mut() {
+        let event = InputEvent::new(
+            EventType::KEY.0,
+            KeyCode::KEY_RIGHTALT.0,
+            i32::from(down),
+        );
+        if let Err(err) = device.emit(&[event]) {
+            tracing::warn!(%err, "uinput emit failed");
+        }
     }
 }
 

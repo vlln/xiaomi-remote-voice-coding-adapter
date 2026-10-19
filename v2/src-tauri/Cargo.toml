@@ -49,4 +49,5 @@ core-graphics = "0.25"
 windows = { version = "0.62.2", features = ["Win32_UI_Input_KeyboardAndMouse"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-input-linux = "0.7"
+evdev = "0.13"
+libc = "0.2"

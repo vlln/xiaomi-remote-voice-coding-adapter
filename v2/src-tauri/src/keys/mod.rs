@@ -66,7 +66,7 @@ pub fn create() -> Box<dyn KeyMapper> {
     }
     #[cfg(target_os = "linux")]
     {
-        Box::new(linux::LinuxKeyMapper)
+        Box::new(linux::LinuxKeyMapper::new())
     }
     #[cfg(target_os = "windows")]
     {
@@ -77,6 +77,9 @@ pub fn create() -> Box<dyn KeyMapper> {
         Box::new(unsupported::UnsupportedKeyMapper)
     }
 }
+
+#[cfg(target_os = "linux")]
+mod linux;
 
 #[cfg(target_os = "macos")]
 mod macos_tap;
@@ -201,36 +204,6 @@ mod macos {
             "HIDKeyboardModifierMappingSrc": 0x7000_0000u32 | src_usage,
             "HIDKeyboardModifierMappingDst": 0x7000_0000u32 | dst_usage,
         })
-    }
-}
-
-#[cfg(target_os = "linux")]
-mod linux {
-    use super::voice_modifier;
-    use super::{KeyMapSettings, KeyMapper};
-
-    pub struct LinuxKeyMapper;
-
-    impl KeyMapper for LinuxKeyMapper {
-        fn backend(&self) -> &'static str {
-            "Linux uinput (voice)"
-        }
-
-        fn supported(&self) -> bool {
-            true
-        }
-
-        fn apply(&self, settings: &KeyMapSettings) -> Result<(), String> {
-            // Voice push-to-talk works today; Home/TV/back remapping still
-            // needs a full evdev grab + uinput passthrough.
-            voice_modifier::set_enabled(settings.voice_to_right_option);
-            Ok(())
-        }
-
-        fn clear(&self) -> Result<(), String> {
-            voice_modifier::set(false);
-            Ok(())
-        }
     }
 }
 
