@@ -155,6 +155,10 @@ sudo apt-get install -f   # 补齐依赖
 
 x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
+## 发布
+
+推送 `v2.*` tag 会触发 `.github/workflows/v2-release.yml`，在 macOS / Windows / Ubuntu 上分别构建 `.dmg`、`.exe`（NSIS）和 `.deb`，并附加到 GitHub Release。版本变更见 [CHANGELOG.md](CHANGELOG.md)。
+
 ## V1 与 V2 的关系
 
 - V1：`scripts/voice_capture.py` + Karabiner + 手动终端启动
