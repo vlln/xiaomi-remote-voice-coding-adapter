@@ -4,9 +4,9 @@
 //! a dedicated thread owns the `cpal` stream and converts it to 48 kHz stereo
 //! for a virtual audio device (BlackHole / VB-CABLE / PipeWire null sink).
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -18,8 +18,8 @@ use ringbuf::{HeapCons, HeapProd, HeapRb};
 use serde::Serialize;
 use tracing::{error, info, warn};
 
-use crate::core::dsp::Resampler;
 use crate::core::AudioSink;
+use crate::core::dsp::Resampler;
 
 const OUTPUT_RATE: u32 = 48_000;
 const CHANNELS: u16 = 2;
@@ -246,9 +246,15 @@ fn build_stream(
     let err_fn = |err| error!(%err, "audio output stream error");
 
     match sample_format {
-        SampleFormat::F32 => build_typed::<f32>(&device, &config, consumer, active, draining, reset, err_fn),
-        SampleFormat::I16 => build_typed::<i16>(&device, &config, consumer, active, draining, reset, err_fn),
-        SampleFormat::U16 => build_typed::<u16>(&device, &config, consumer, active, draining, reset, err_fn),
+        SampleFormat::F32 => {
+            build_typed::<f32>(&device, &config, consumer, active, draining, reset, err_fn)
+        }
+        SampleFormat::I16 => {
+            build_typed::<i16>(&device, &config, consumer, active, draining, reset, err_fn)
+        }
+        SampleFormat::U16 => {
+            build_typed::<u16>(&device, &config, consumer, active, draining, reset, err_fn)
+        }
         other => Err(format!("unsupported sample format: {other:?}")),
     }
 }

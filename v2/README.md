@@ -171,6 +171,17 @@ x86_64 的 `.deb` 由 CI 在 `ubuntu-22.04` 上构建。
 
 > Windows/Linux 目前只做了编译与链接验证，尚未在真实设备上验证 BLE/音频链路；macOS 已实机验证。
 
+### macOS 本地自签名证书（可选）
+
+如果每次重新构建后 `Device Control and Data Access` 授权都会丢失，可以创建一个本地自签名代码签名证书，让 TCC 的 designated requirement 保持稳定：
+
+```bash
+./scripts/create-dev-cert.sh
+# 按脚本最后输出的 codesign 命令给 App 重签
+```
+
+这只适合个人使用；分发前仍需 Apple Developer 证书和公证。
+
 ## 已知限制
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。

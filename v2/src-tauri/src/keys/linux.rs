@@ -8,14 +8,12 @@
 //! Requires read access to `/dev/input/event*` and write access to
 //! `/dev/uinput` (input group / udev rule).
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use evdev::uinput::VirtualDevice;
-use evdev::{
-    AttributeSet, BusType, Device, EventType, InputEvent, InputId, KeyCode,
-};
+use evdev::{AttributeSet, BusType, Device, EventType, InputEvent, InputId, KeyCode};
 use parking_lot::Mutex;
 use tracing::{debug, info, warn};
 
@@ -153,9 +151,9 @@ fn find_remote() -> Option<(std::path::PathBuf, Device)> {
     for (path, device) in evdev::enumerate() {
         let id = device.input_id();
         if id.vendor() == VENDOR && id.product() == PRODUCT {
-            let is_keyboard = device
-                .supported_keys()
-                .is_some_and(|keys| keys.contains(KeyCode::KEY_F5) || keys.contains(KeyCode::KEY_HOME));
+            let is_keyboard = device.supported_keys().is_some_and(|keys| {
+                keys.contains(KeyCode::KEY_F5) || keys.contains(KeyCode::KEY_HOME)
+            });
             if is_keyboard {
                 return Some((path, device));
             }

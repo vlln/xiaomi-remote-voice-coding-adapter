@@ -39,9 +39,7 @@ pub fn set(down: bool) {
 
 #[cfg(target_os = "macos")]
 fn post(down: bool) {
-    use core_graphics::event::{
-        CGEvent, CGEventFlags, CGEventTapLocation, CGEventType,
-    };
+    use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, CGEventType};
     use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
     const RIGHT_OPTION_KEYCODE: u16 = 61;
@@ -64,7 +62,7 @@ fn post(down: bool) {
 #[cfg(target_os = "windows")]
 fn post(down: bool) {
     use windows::Win32::UI::Input::KeyboardAndMouse::{
-        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
+        INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput,
         VK_RMENU,
     };
 
@@ -122,11 +120,7 @@ fn post(down: bool) {
     });
 
     if let Some(device) = device.lock().as_mut() {
-        let event = InputEvent::new(
-            EventType::KEY.0,
-            KeyCode::KEY_RIGHTALT.0,
-            i32::from(down),
-        );
+        let event = InputEvent::new(EventType::KEY.0, KeyCode::KEY_RIGHTALT.0, i32::from(down));
         if let Err(err) = device.emit(&[event]) {
             tracing::warn!(%err, "uinput emit failed");
         }

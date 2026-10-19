@@ -131,13 +131,7 @@ mod macos {
             let matching = format!(r#"{{"VendorID":{VENDOR_ID},"ProductID":{PRODUCT_ID}}}"#);
             info!(mappings = %json, "applying macOS key mapping");
             let output = Command::new("/usr/bin/hidutil")
-                .args([
-                    "property",
-                    "--matching",
-                    &matching,
-                    "--set",
-                    &json,
-                ])
+                .args(["property", "--matching", &matching, "--set", &json])
                 .output()
                 .map_err(|e| format!("failed to run hidutil: {e}"))?;
             if !output.status.success() {
@@ -173,10 +167,7 @@ mod macos {
         }
     }
 
-    fn build_mappings(
-        settings: &KeyMapSettings,
-        tap_active: bool,
-    ) -> Vec<serde_json::Value> {
+    fn build_mappings(settings: &KeyMapSettings, tap_active: bool) -> Vec<serde_json::Value> {
         let mut mappings = Vec::new();
         // With the event tap active, the voice key is driven by the ATVV
         // session engine and F5 is swallowed. Without Accessibility, fall back

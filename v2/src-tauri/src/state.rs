@@ -5,15 +5,15 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use tauri::async_runtime::JoinHandle;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{mpsc, oneshot};
-use tauri::async_runtime::JoinHandle;
 use tracing::{error, info, warn};
 
 use crate::audio::{self, AudioDeviceInfo, CpalSink};
 use crate::ble::{self, EngineEvent};
-use crate::core::atvv::SessionSnapshot;
 use crate::core::AudioSink;
+use crate::core::atvv::SessionSnapshot;
 use crate::keys::{KeyMapSettings, KeyMapper};
 use crate::recording::RecordingSink;
 

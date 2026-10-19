@@ -7,22 +7,22 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use btleplug::api::{
-    Central, CharPropFlags, Characteristic, Manager as _, Peripheral as _, RetrievePeripheralsOptions,
-    ScanFilter, WriteType,
+    Central, CharPropFlags, Characteristic, Manager as _, Peripheral as _,
+    RetrievePeripheralsOptions, ScanFilter, WriteType,
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::StreamExt;
 use serde::Serialize;
 use tokio::sync::{mpsc, oneshot};
-use tokio::time::{interval, sleep, timeout, MissedTickBehavior};
+use tokio::time::{MissedTickBehavior, interval, sleep, timeout};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use crate::core::AudioSink;
 use crate::core::atvv::{
-    Caps, Session, SessionCommand, SessionSnapshot, GET_CAPS, VOICE_AUDIO, VOICE_CONTROL,
+    Caps, GET_CAPS, Session, SessionCommand, SessionSnapshot, VOICE_AUDIO, VOICE_CONTROL,
     VOICE_SERVICE, VOICE_TX,
 };
-use crate::core::AudioSink;
 use crate::keys::voice_modifier;
 
 #[derive(Debug, Clone, Serialize)]

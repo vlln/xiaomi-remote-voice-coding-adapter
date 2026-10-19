@@ -199,7 +199,11 @@ pub fn apply_gain(samples: &[i16], gain_db: f64) -> Vec<i16> {
     samples
         .iter()
         .map(|&sample| {
-            to_i16((f64::from(sample) * gain).round_ties_even().clamp(-32768.0, 32767.0) as i32)
+            to_i16(
+                (f64::from(sample) * gain)
+                    .round_ties_even()
+                    .clamp(-32768.0, 32767.0) as i32,
+            )
         })
         .collect()
 }
@@ -236,7 +240,10 @@ mod tests {
     fn gate_passes_calibration_and_loud_frame() {
         let mut gate = NoiseGate::new();
         for _ in 0..NoiseGate::CALIBRATION_FRAMES {
-            assert_eq!(gate.process(&[100, -100, 100, -100]), vec![100, -100, 100, -100]);
+            assert_eq!(
+                gate.process(&[100, -100, 100, -100]),
+                vec![100, -100, 100, -100]
+            );
         }
         assert_eq!(gate.gain(), 1.0);
         assert_eq!(

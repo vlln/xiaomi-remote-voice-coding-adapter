@@ -10,9 +10,9 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tracing::{debug, info, warn};
 
-use super::adpcm::AdpcmDecoder;
-use super::dsp::{apply_gain, NoiseGate, NoiseReducer};
 use super::AudioSink;
+use super::adpcm::AdpcmDecoder;
+use super::dsp::{NoiseGate, NoiseReducer, apply_gain};
 
 pub const VOICE_SERVICE: &str = "ab5e0001-5a21-4f05-bc7d-af01f617b664";
 pub const VOICE_TX: &str = "ab5e0002-5a21-4f05-bc7d-af01f617b664";
@@ -86,7 +86,11 @@ impl Caps {
             interaction,
             frame_size: frame_size.max(1),
             selected_codec,
-            sample_rate: if selected_codec == 0x02 { 16_000 } else { 8_000 },
+            sample_rate: if selected_codec == 0x02 {
+                16_000
+            } else {
+                8_000
+            },
         })
     }
 }
@@ -404,7 +408,11 @@ impl Session {
 
         let finished_frames = self.audio_frames;
         let finished_samples = self.pcm_samples;
-        info!(frames = finished_frames, samples = finished_samples, "voice session finished");
+        info!(
+            frames = finished_frames,
+            samples = finished_samples,
+            "voice session finished"
+        );
         self.pending.clear();
         self.skip_frames = 0;
         self.tail_guard.clear();

@@ -59,6 +59,9 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Rust format check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
       - name: Core tests
         run: cargo test --lib --manifest-path src-tauri/Cargo.toml
 
