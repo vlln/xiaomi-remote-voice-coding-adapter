@@ -1,5 +1,7 @@
 # xiaomi-remote
 
+> **V2（Tauri 跨平台 App）** 位于 [`v2/`](v2/README.md)：菜单栏 App + Rust BLE/音频链路 + 设备级按键映射，支持 macOS / Windows / Linux。以下为 V1（Python + Karabiner）文档。
+
 小米蓝牙语音遥控器 2 Pro (XMRM-XX) 的 macOS 工具集。
 
 ## 功能

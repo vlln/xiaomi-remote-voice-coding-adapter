@@ -1,0 +1,42 @@
+[package]
+name = "xiaomi-remote-v2"
+version = "2.0.0"
+description = "Cross-platform Xiaomi Bluetooth Voice Remote bridge"
+authors = ["vlln"]
+edition = "2024"
+
+[lib]
+name = "xiaomi_remote_v2_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1"
+btleplug = "0.13"
+chrono = { version = "0.4", features = ["serde"] }
+cpal = "0.15"
+futures = "0.3"
+hound = "3"
+parking_lot = "0.12"
+ringbuf = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["serde"] }
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
