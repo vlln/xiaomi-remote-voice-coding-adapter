@@ -4,7 +4,27 @@
 
 V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库根目录作为参考实现。
 
+> **发布状态（V2.5.6）**
+>
+> - **macOS**：已在真实设备验证（Apple Silicon，macOS 27），并通过 24/24 单元测试。
+> - **Windows**：**未测试**。本次没有在 Windows 真机验证 BLE、音频和按键链路。
+> - **Linux**：**未测试**。本次没有在 Linux 真机验证 BLE、音频和按键链路。
+>
+> Windows/Linux 保留代码路径，但不属于本次验证范围；请勿把 macOS 的结论外推到其他平台。
+
 ![Xiaomi Remote V2](docs/screenshot.png)
+
+## 下载
+
+- **macOS（arm64）**：[GitHub Releases](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases) 发布后下载 DMG；本地构建产物在 `src-tauri/target/release/bundle/dmg/`。
+- **Windows / Linux**：本次**不提供经过验证的安装包**。可以按下方「开发」从源码构建，但需要自行完成真机验证。
+
+当前 macOS DMG：
+
+```text
+Xiaomi Remote_2.5.6_aarch64.dmg
+SHA-256 0d365322332bbc0098c0f8e9250d0152a04be9d5d0dc4235b4f069372b50f10e
+```
 
 ## 快速开始
 
@@ -18,7 +38,7 @@ pnpm install
 
 首次打开按「概览 → 快速设置」完成三步：安装/选择虚拟麦克风、授权键盘控制、连接遥控器。然后到「按键映射」点击某个按键，按下遥控器上的对应键即可重新绑定。
 
-Linux 使用 `release/` 下的 `.deb`（2.5.6 由 CI/tag 构建），Windows 使用 CI 产出的 NSIS 安装包。
+Windows / Linux 目前没有经过验证的安装包；请从源码构建并自行实机验证，见下方「开发」。
 
 ## 功能
 
@@ -29,13 +49,11 @@ Linux 使用 `release/` 下的 `.deb`（2.5.6 由 CI/tag 构建），Windows 使
 - 设备级按键映射：语音 / Home / TV / 菜单 / 返回固定来源，点击目标键后按键盘按键即可重设目标（细节见 [docs/KEY_MAPPING.md](docs/KEY_MAPPING.md)）
 - 持续按键测试：点击测试后连续按遥控器键，左侧实时高亮并显示结果；测试期间拦截真实按键，不会触发映射
 - 语音键目标可改，不再绑死右 Option
-- 音频处理：降噪、噪声门、0–18 dB 增益
 - 高级页提供作者与 GitHub 跳转
 - 新应用图标：橙色底 + 白色遥控器
 - `tools/align-hotspots.html`：可视化橙圈对齐工具
 - 全新的侧边栏 UI：概览 / 按键映射 / 音频 / 高级，设置更集中、更干净
-- 每次语音会话缓存最近一次录音，界面里一键回放
-- 按键映射支持「测试按键」：按下遥控器按键即可看到实际目标
+- 每次语音会话缓存最近一次录音，可在音频页回放
 - 自动重连、看门狗、单实例、配置持久化
 
 ![按键按下效果](docs/capture.png)
@@ -46,14 +64,14 @@ Linux 使用 `release/` 下的 `.deb`（2.5.6 由 CI/tag 构建），Windows 使
 
 | 能力 | macOS | Windows | Linux |
 |---|---|---|---|
-| BLE 语音桥接 | ✅ 已实机验证 | ✅ 代码已抽象，待实机验证 | ✅ 代码已抽象，待实机验证 |
-| 虚拟麦克风输出 | BlackHole 2ch | VB-CABLE / Virtual Audio Cable | PipeWire / PulseAudio null sink |
-| 按键映射 | ✅ `hidutil` + EventTap | ✅ 默认语音键；可选 `interception` feature 提供 Home/TV/返回（需驱动） | ✅ evdev grab + uinput 全键映射（已编译/测试，待实机验证） |
-| 菜单栏 / 托盘 | ✅ | ✅ | ✅ |
-| 开机自启 | ✅ 已生成并校验 LaunchAgent | ✅（plugin） | ✅（plugin） |
-| 录音回放 | ✅ | ✅ | ✅ |
+| BLE 语音桥接 | ✅ 已实机验证 | ⚠️ 未测试 | ⚠️ 未测试 |
+| 虚拟麦克风输出 | BlackHole 2ch（已验证） | VB-CABLE / Virtual Audio Cable（未测试） | PipeWire / PulseAudio null sink（未测试） |
+| 按键映射 | ✅ `hidutil` + EventTap | ⚠️ 仅代码路径；需自行验证 | ⚠️ 仅代码路径；需自行验证 |
+| 菜单栏 / 托盘 | ✅ 已实机验证 | ⚠️ 未测试 | ⚠️ 未测试 |
+| 开机自启 | ✅ LaunchAgent 已验证 | ⚠️ 未测试 | ⚠️ 未测试 |
+| 录音回放 | ✅ | ⚠️ 未测试 | ⚠️ 未测试 |
 
-> V2.5.6 首先在 macOS 上跑通；Windows/Linux 的 BLE/音频层使用跨平台 crate（`btleplug` + `cpal`），但还需要在对应系统上做实机验证与按键后端。
+> **代码存在不等于已验证。** V2.5.6 的验证结论只覆盖 macOS；Windows/Linux 需要在对应真机上重新验证 BLE 配对、音频设备、按键后端和安装包。
 
 ## 架构
 
@@ -151,7 +169,9 @@ cargo test --lib
 
 > 如果之前装过 Karabiner 并启用了遥控器规则，请先退出 Karabiner，避免它和 V2 的 `hidutil` 映射同时作用于同一个设备。
 
-## Windows / Linux 音频路由
+## Windows / Linux 音频路由（未测试）
+
+> 以下步骤是代码路径对应的配置说明，**没有在本轮发布中做过真机验证**。
 
 ### Windows
 
@@ -170,26 +190,21 @@ pactl load-module module-null-sink sink_name=xiaomi_remote \
 2. 在目标 App 里把麦克风设为 **Monitor of Xiaomi Remote**。
 3. 语音修饰键需要 `/dev/uinput` 写权限（见上方 udev 规则）。
 
-### Linux 安装包（本地构建）
+### Linux 安装包
 
-在 Debian bookworm arm64 容器中已实际构建出安装包：
+`release/` 里只有一个 **2.0.0 历史 `.deb`**，不是 V2.5.6：
 
 ```text
 release/Xiaomi Remote_2.0.0_arm64.deb   (2.0.0 历史包，3.5 MB)
 ```
 
-安装：
-
-```bash
-sudo dpkg -i "Xiaomi Remote_2.0.0_arm64.deb"
-sudo apt-get install -f   # 补齐依赖
-```
-
-V2.5.6 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；本地 arm64 历史包仍保留在 `release/`。
+V2.5.6 **没有**经过验证的 Linux `.deb`，也没有在本轮构建。需要时请从源码构建 `pnpm tauri build`，并在目标发行版实机验证。
 
 ## 发布
 
-推送 `v2.*` tag 会触发 `.github/workflows/v2-release.yml`，在 macOS / Windows / Ubuntu 上分别构建 `.dmg`、`.exe`（NSIS）和 `.deb`，并附加到 GitHub Release。版本变更见 [CHANGELOG.md](CHANGELOG.md)。
+本次 V2.5.6 只准备了 **macOS arm64 DMG**，并已在本机安装验证。仓库里虽然有 `.github/workflows/v2-release.yml`，但本轮**没有运行 Windows/Linux 的发布构建**，因此不要把 CI 配置理解为已验证发布。
+
+版本变更见 [CHANGELOG.md](CHANGELOG.md)，发布说明见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 
 ## V1 与 V2 的关系
 
@@ -201,11 +216,11 @@ V2.5.6 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；�
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 目标键录制 + 测试按键 + 音频处理 | 24/24 测试通过；V2.5.6 已安装运行，快速设置 3/3，`macOS event tap`；Home→F6 目标录制、测试、恢复默认、降噪切换均实测 |
-| Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + Windows 交叉检查 | **25/25** 测试通过；Windows 默认/optional Interception 构建通过 `cargo check` |
-| Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
+| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 目标键录制 + 持续测试 + 音频处理 | **24/24 测试通过**；V2.5.6 已安装运行，快速设置 3/3，`hidutil` + EventTap 生效 |
+| Windows (x86_64) | 未在 Windows 真机运行；本轮未构建 V2.5.6 | **未测试** |
+| Linux (arm64/x86_64) | 未在 Linux 真机运行；本轮未构建 V2.5.6 | **未测试** |
 
-> Windows/Linux 目前只做了编译与链接验证，尚未在真实设备上验证 BLE/音频链路；macOS 已实机验证。
+> 历史版本曾在容器里做过 Linux/Windows 的编译检查，但那些检查**不能替代 V2.5.6 的真机验证**，也不在本轮发布结论内。
 
 ### macOS 本地自签名证书（可选）
 
@@ -220,10 +235,11 @@ V2.5.6 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；�
 
 ## 已知限制
 
+- **Windows/Linux 尚未在真机验证**，本轮发布只覆盖 macOS。BLE、音频设备、按键后端和安装包都需要在对应平台重新验证。
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
 - macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的语音键。V2.5.6 已重新授权并显示 `macOS event tap`；重装/换签名后需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
 - 按键录制复用 Accessibility 的 EventTap，不需要额外的 Input Monitoring 权限；目前录制入口只在 macOS 提供，Linux/Windows 使用默认绑定或配置文件。
-- Windows 默认只实现语音键（push-to-talk）的 `SendInput` 注入。Home/TV/返回可通过可选的 `interception` feature 启用，但需要安装 Interception 内核驱动，并把 `interception.dll` 放到 exe 同目录：
+- Windows 默认只实现语音键（push-to-talk）的 `SendInput` 注入。Home/TV/菜单/返回可通过可选的 `interception` feature 启用，但需要安装 Interception 内核驱动，并把 `interception.dll` 放到 exe 同目录。该路径**未在 Windows 真机验证**：
 
   ```bash
   pnpm tauri build -- --features interception
@@ -231,7 +247,7 @@ V2.5.6 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；�
   ```
 
   未启用时界面上 Home/TV/返回开关会置灰。
-- Linux 已实现完整的 evdev grab + uinput 透传（语音/Home/TV/返回）。运行前需要能读 `/dev/input/event*`（`input` 组）并写 `/dev/uinput`：
+- Linux 有 evdev grab + uinput 透传的代码路径（语音/Home/TV/菜单/返回），但**未在 Linux 真机验证**。运行前需要能读 `/dev/input/event*`（`input` 组）并写 `/dev/uinput`：
 
   ```bash
   sudo usermod -aG input "$USER"
