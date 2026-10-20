@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.7
+
+### Changed
+
+- Project hygiene release: product README, V1 archive, GPL-3.0 license, old artifacts removed
+- No runtime behavior changes since 2.5.6
+
 ## 2.5.6
 
 ### Changed

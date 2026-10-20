@@ -1,4 +1,4 @@
-# Xiaomi Remote V2.5.6 — Release Notes
+# Xiaomi Remote V2.5.7 — Release Notes
 
 发布日期：2026-10-20
 
@@ -14,17 +14,12 @@
 
 ## 产物
 
-Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.6
+Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.7
 
 ```text
-Xiaomi.Remote_2.5.6_aarch64.dmg
-SHA-256 1707760552744e043c04f14d4471793076856f016d3058d9dbeb8b7023c082f0
-
-Xiaomi.Remote_2.5.6_x64-setup.exe
-SHA-256 8dd7cbff39bb67bdc6ae660ecfa6028e1ea8d8dcb18c0e8616c152290d4733b0
-
-Xiaomi.Remote_2.5.6_amd64.deb
-SHA-256 b827d7d23e667a1f07bb34fa502e04ea93ac8367abb07ecd0da307abb161755e
+Xiaomi.Remote_2.5.7_aarch64.dmg
+Xiaomi.Remote_2.5.7_x64-setup.exe
+Xiaomi.Remote_2.5.7_amd64.deb
 ```
 
 - macOS 签名：ad-hoc（`-`），**未做 Apple 公证**
@@ -53,13 +48,13 @@ SHA-256 b827d7d23e667a1f07bb34fa502e04ea93ac8367abb07ecd0da307abb161755e
 
 ### Windows
 
-运行 `Xiaomi.Remote_2.5.6_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
+运行 `Xiaomi.Remote_2.5.7_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
 
 ### Linux
 
 ```bash
 sudo apt-get install -y libwebkit2gtk-4.1-0 libasound2 libudev1
-sudo dpkg -i Xiaomi.Remote_2.5.6_amd64.deb
+sudo dpkg -i Xiaomi.Remote_2.5.7_amd64.deb
 sudo apt-get install -f
 ```
 
