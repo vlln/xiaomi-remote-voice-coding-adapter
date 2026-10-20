@@ -37,7 +37,7 @@ Linux 使用 `release/` 下的 `.deb`（2.5.1 由 CI/tag 构建），Windows 使
 - 按键映射支持「测试按键」：按下遥控器按键即可看到实际目标
 - 自动重连、看门狗、单实例、配置持久化
 
-![语音键目标可改](docs/capture.png)
+![按键按下效果](docs/capture.png)
 
 ![按键映射与遥控器指示](docs/keymap.png)
 
