@@ -81,8 +81,8 @@ sudo apt-get install -f
 
 ## 相关文档
 
-- [README](README.md)
-- [按键映射](docs/KEY_MAPPING.md)
-- [CHANGELOG](CHANGELOG.md)
-- [橙圈对齐工具](tools/align-hotspots.html)
-- [配合语音输入法（Typeless / 豆包）](docs/VOICE_INPUT.md)
+- [README](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/blob/main/README.md)
+- [按键映射](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/blob/main/v2/docs/KEY_MAPPING.md)
+- [CHANGELOG](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/blob/main/v2/CHANGELOG.md)
+- [橙圈对齐工具](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/blob/main/v2/tools/align-hotspots.html)
+- [配合语音输入法（Typeless / 豆包）](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/blob/main/v2/docs/VOICE_INPUT.md)
