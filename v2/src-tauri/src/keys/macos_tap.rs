@@ -170,7 +170,9 @@ fn start_tap() -> bool {
                             let _ = tx.send(keycode);
                         }
                     }
-                    return CallbackResult::Keep;
+                    // Test mode is a dry run: swallow the real key so the
+                    // mapping does not fire in the app behind the panel.
+                    return CallbackResult::Drop;
                 }
                 if CAPTURE_ACTIVE.load(Ordering::Relaxed) {
                     // Modifiers arrive as FlagsChanged; only capture the press

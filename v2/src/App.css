@@ -1558,7 +1558,7 @@ button:disabled {
 .test-live {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   padding: 9px 12px;
   border: 1px solid #ffd6b8;
   border-radius: 10px;
@@ -1567,9 +1567,50 @@ button:disabled {
   font-size: 11.5px;
 }
 
-.test-live .btn-text {
+.test-live > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.test-live strong {
+  color: #7a3c12;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.test-live span {
+  color: #a5673c;
+  font-size: 11px;
+}
+
+.test-live .btn {
+  flex: none;
   margin-left: auto;
+}
+
+.test-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 4px 0 10px;
+  border: 1px solid #ffd2b4;
+  border-radius: 9px;
+  color: #a54a10;
+  background: #fff8f2;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.test-chip .btn {
   height: 24px;
+  padding: 0 8px;
+  border-color: #ffd2b4;
+  color: #a54a10;
+  background: #fff;
 }
 
 .author-row {

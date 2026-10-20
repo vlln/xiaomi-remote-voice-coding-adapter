@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.4
+
+### Changed
+
+- Test mode now swallows real key events while active
+- Shows a persistent test status chip and stop button in the page header; test bar explains interception
+
 ## 2.5.3
 
 ### Fixed

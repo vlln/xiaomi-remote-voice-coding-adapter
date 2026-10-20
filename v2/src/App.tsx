@@ -1035,7 +1035,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5.3</small>
+            <small>小米遥控器 2 · V2.5.4</small>
           </span>
         </div>
 
@@ -1076,7 +1076,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.3</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.4</div>
         </div>
       </aside>
 
@@ -1087,6 +1087,15 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <p>{pageMeta[page].subtitle}</p>
           </div>
           <div className="page-actions">
+            {page === "keys" && testing && (
+              <span className="test-chip">
+                <span className="status-dot recording" />
+                测试中
+                <button className="btn btn-small" onClick={stopTest}>
+                  停止
+                </button>
+              </span>
+            )}
             <span className={`status-chip ${tone}`}>
               <span className="status-dot" />
               {stateLabel}
@@ -1292,10 +1301,12 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
 
                 {testing && (
                   <div className="test-live">
-                    <span className="status-dot recording" />
-                    测试中 · 连续按下遥控器按键
-                    <button className="btn btn-text" onClick={stopTest}>
-                      停止
+                    <div>
+                      <strong>测试中</strong>
+                      <span>按键事件已临时拦截，不会触发真实映射</span>
+                    </div>
+                    <button className="btn btn-small" onClick={stopTest}>
+                      停止测试
                     </button>
                   </div>
                 )}
@@ -1633,7 +1644,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.3</strong>
+                    <strong>2.5.4</strong>
                   </div>
                   <div>
                     <span>平台</span>
