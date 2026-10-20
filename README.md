@@ -8,12 +8,14 @@
 
 BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 · 菜单栏常驻
 
-<a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.6">
-  <img src="https://img.shields.io/badge/Download-v2.5.6-ff6900?style=flat-square" alt="Download" />
-</a>
-<img src="https://img.shields.io/badge/macOS-verified-16a34a?style=flat-square" alt="macOS verified" />
-<img src="https://img.shields.io/badge/Windows%2FLinux-CI%20build%20only-f59e0b?style=flat-square" alt="Windows/Linux CI only" />
-<img src="https://img.shields.io/badge/Rust-1.85%2B-000000?style=flat-square&logo=rust" alt="Rust" />
+<p>
+  <strong>v2.5.6</strong> · macOS 已实机验证 · Windows/Linux CI 构建 · Rust 1.85+
+</p>
+<p>
+  <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.6">下载 Release</a>
+  ·
+  <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter">GitHub</a>
+</p>
 
 </div>
 
