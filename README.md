@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="v2/public/app-icon.png" width="92" alt="Xiaomi Remote" />
+<img src="https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/public/app-icon.png" width="92" alt="Xiaomi Remote" />
 
 # Xiaomi Remote
 
@@ -17,7 +17,7 @@ BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 ·
 
 </div>
 
-![概览](v2/docs/screenshot.png)
+![概览](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/screenshot.png)
 
 ## 它做什么
 
@@ -28,7 +28,7 @@ BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 ·
 
 | 按键映射 | 测试与按压效果 |
 |:---:|:---:|
-| ![按键映射](v2/docs/keymap.png) | ![按键测试](v2/docs/capture.png) |
+| ![按键映射](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png) | ![按键测试](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/capture.png) |
 
 ## 下载
 

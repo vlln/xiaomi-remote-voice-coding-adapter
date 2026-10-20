@@ -12,7 +12,7 @@ V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本已归档在 [`../v1
 >
 > 三个平台都已构建安装包；但“CI 构建/单元测试通过”不等于“真机可用”。macOS 是唯一完成实机验证的平台。
 
-![Xiaomi Remote V2](docs/screenshot.png)
+![Xiaomi Remote V2](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/screenshot.png)
 
 ## 下载
 
@@ -56,9 +56,9 @@ Windows / Linux 已有 CI 构建的安装包（见「下载」），但**没有�
 - 每次语音会话缓存最近一次录音，可在音频页回放
 - 自动重连、看门狗、单实例、配置持久化
 
-![按键按下效果](docs/capture.png)
+![按键按下效果](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/capture.png)
 
-![按键映射与遥控器指示](docs/keymap.png)
+![按键映射与遥控器指示](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png)
 
 ## 平台支持（V2.5.6）
 
