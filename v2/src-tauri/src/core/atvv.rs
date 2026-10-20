@@ -12,7 +12,7 @@ use tracing::{debug, info, warn};
 
 use super::AudioSink;
 use super::adpcm::AdpcmDecoder;
-use super::dsp::{NoiseGate, NoiseReducer, apply_gain};
+use super::dsp::{AudioProcessing, NoiseGate, NoiseReducer, apply_gain};
 
 pub const VOICE_SERVICE: &str = "ab5e0001-5a21-4f05-bc7d-af01f617b664";
 pub const VOICE_TX: &str = "ab5e0002-5a21-4f05-bc7d-af01f617b664";
@@ -117,6 +117,7 @@ pub struct Session {
     decoder: AdpcmDecoder,
     noise_reducer: NoiseReducer,
     noise_gate: NoiseGate,
+    processing: AudioProcessing,
     pending: Vec<u8>,
     tail_guard: VecDeque<(Vec<i16>, Vec<i16>)>,
     skip_frames: u32,
@@ -132,6 +133,10 @@ pub struct Session {
 
 impl Session {
     pub fn new(output: Arc<dyn AudioSink>) -> Self {
+        Self::with_processing(output, AudioProcessing::default())
+    }
+
+    pub fn with_processing(output: Arc<dyn AudioSink>, processing: AudioProcessing) -> Self {
         let now = Instant::now();
         Self {
             state: SessionState::Idle,
@@ -139,6 +144,7 @@ impl Session {
             decoder: AdpcmDecoder::new(),
             noise_reducer: NoiseReducer::new(),
             noise_gate: NoiseGate::new(),
+            processing,
             pending: Vec::with_capacity(256),
             tail_guard: VecDeque::with_capacity(TAIL_GUARD_FRAMES + 2),
             skip_frames: 0,
@@ -167,7 +173,11 @@ impl Session {
             mic_open: self.mic_open,
             audio_frames: self.audio_frames,
             pcm_samples: self.pcm_samples,
-            gate_gain: self.noise_gate.gain(),
+            gate_gain: if self.processing.noise_gate {
+                self.noise_gate.gain()
+            } else {
+                1.0
+            },
             caps: self.caps,
         }
     }
@@ -307,9 +317,17 @@ impl Session {
             }
 
             let raw = self.decoder.decode_bytes(&frame);
-            let noise_reduced = self.noise_reducer.process(&raw);
-            let gated = self.noise_gate.process(&noise_reduced);
-            let gained = apply_gain(&gated, 15.0);
+            let reduced = if self.processing.noise_reduction {
+                self.noise_reducer.process(&raw)
+            } else {
+                raw.clone()
+            };
+            let gated = if self.processing.noise_gate {
+                self.noise_gate.process(&reduced)
+            } else {
+                reduced
+            };
+            let gained = apply_gain(&gated, self.processing.gain_db);
             self.queue_processed_frame(raw, gained);
         }
     }
@@ -397,9 +415,17 @@ impl Session {
             while self.pending.len() >= frame_size {
                 let frame: Vec<u8> = self.pending.drain(..frame_size).collect();
                 let raw = self.decoder.decode_bytes(&frame);
-                let noise_reduced = self.noise_reducer.process(&raw);
-                let gated = self.noise_gate.process(&noise_reduced);
-                let gained = apply_gain(&gated, 15.0);
+                let reduced = if self.processing.noise_reduction {
+                    self.noise_reducer.process(&raw)
+                } else {
+                    raw.clone()
+                };
+                let gated = if self.processing.noise_gate {
+                    self.noise_gate.process(&reduced)
+                } else {
+                    reduced
+                };
+                let gained = apply_gain(&gated, self.processing.gain_db);
                 self.queue_processed_frame(raw, gained);
                 tail_frames += 1;
             }

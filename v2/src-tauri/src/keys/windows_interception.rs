@@ -146,40 +146,44 @@ fn translate(
     mut stroke: raw::InterceptionKeyStroke,
     settings: &KeyMapSettings,
 ) -> Option<raw::InterceptionKeyStroke> {
-    let voice = usage::usage_to_scancode(settings.voice_key.usage);
-    let home = usage::usage_to_scancode(settings.home_key.usage);
-    let tv = usage::usage_to_scancode(settings.tv_key.usage);
-    let back = usage::usage_to_scancode(settings.back_key.usage);
     let is_e0 = stroke.state & STATE_E0 != 0;
+    let voice = usage::usage_to_scancode(usage::DEFAULT_VOICE_USAGE);
+    let home = usage::usage_to_scancode(usage::DEFAULT_HOME_USAGE);
+    let tv = usage::usage_to_scancode(usage::DEFAULT_TV_USAGE);
+    let back = usage::usage_to_scancode(usage::DEFAULT_BACK_USAGE);
 
     if settings.voice_to_right_option
         && voice.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
     {
-        // The ATVV engine injects right Alt through SendInput.
+        // The ATVV engine injects the right Alt modifier through SendInput.
         return None;
     }
 
-    let mapped = if settings.home_to_escape
+    let target = if settings.home_to_escape
         && home.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
     {
-        Some(SCAN_ESC)
+        Some(usage::usage_to_scancode(settings.home_target.usage))
     } else if settings.tv_to_backspace
         && tv.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
     {
-        Some(SCAN_BACKSPACE)
-    } else if back.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0) {
-        match settings.back_target {
-            BackTarget::None => return None,
-            BackTarget::Backspace => Some(SCAN_BACKSPACE),
-            BackTarget::Escape => Some(SCAN_ESC),
-        }
+        Some(usage::usage_to_scancode(settings.tv_target.usage))
+    } else if settings.back_target != BackTarget::None
+        && back.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
+    {
+        Some(usage::usage_to_scancode(settings.back_target_key.usage))
     } else {
+        None
+    };
+
+    let Some(Some((code, e0))) = target else {
         return Some(stroke);
     };
 
-    stroke.code = mapped?;
-    // Preserve the key-up bit; DOWN is zero in Interception's state encoding.
+    stroke.code = code;
     stroke.state &= !(STATE_E0 | 0x04);
+    if e0 {
+        stroke.state |= STATE_E0;
+    }
     Some(stroke)
 }
 

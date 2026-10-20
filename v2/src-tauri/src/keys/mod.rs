@@ -52,30 +52,27 @@ pub struct KeyMapSettings {
     pub home_to_escape: bool,
     pub tv_to_backspace: bool,
     pub back_target: BackTarget,
-    #[serde(default = "default_voice_key")]
-    pub voice_key: KeySource,
-    #[serde(default = "default_home_key")]
-    pub home_key: KeySource,
-    #[serde(default = "default_tv_key")]
-    pub tv_key: KeySource,
-    #[serde(default = "default_back_key")]
-    pub back_key: KeySource,
+    /// Target for the fixed Home button.
+    #[serde(default = "default_home_target")]
+    pub home_target: KeySource,
+    /// Target for the fixed TV button.
+    #[serde(default = "default_tv_target")]
+    pub tv_target: KeySource,
+    /// Target for the fixed Back button.
+    #[serde(default = "default_back_target_key")]
+    pub back_target_key: KeySource,
 }
 
-fn default_voice_key() -> KeySource {
-    KeySource::new(usage::DEFAULT_VOICE_USAGE)
+fn default_home_target() -> KeySource {
+    KeySource::new(0x29) // Escape
 }
 
-fn default_home_key() -> KeySource {
-    KeySource::new(usage::DEFAULT_HOME_USAGE)
+fn default_tv_target() -> KeySource {
+    KeySource::new(0x2A) // Backspace
 }
 
-fn default_tv_key() -> KeySource {
-    KeySource::new(usage::DEFAULT_TV_USAGE)
-}
-
-fn default_back_key() -> KeySource {
-    KeySource::new(usage::DEFAULT_BACK_USAGE)
+fn default_back_target_key() -> KeySource {
+    KeySource::new(0x2A) // Backspace
 }
 
 impl Default for KeyMapSettings {
@@ -85,10 +82,9 @@ impl Default for KeyMapSettings {
             home_to_escape: true,
             tv_to_backspace: true,
             back_target: BackTarget::Backspace,
-            voice_key: default_voice_key(),
-            home_key: default_home_key(),
-            tv_key: default_tv_key(),
-            back_key: default_back_key(),
+            home_target: default_home_target(),
+            tv_target: default_tv_target(),
+            back_target_key: default_back_target_key(),
         }
     }
 }
@@ -182,15 +178,11 @@ mod macos {
                 );
             }
             voice_modifier::set_enabled(settings.voice_to_right_option);
-            let voice_keycode = super::usage::usage_to_macos_keycode(settings.voice_key.usage);
-            let tap_active = settings.voice_to_right_option
-                && voice_keycode.is_some()
-                && macos_tap::ensure_tap();
-            macos_tap::set_voice_keycode(if tap_active {
-                voice_keycode.unwrap_or(0)
-            } else {
-                0
-            });
+            let voice_keycode =
+                super::usage::usage_to_macos_keycode(super::usage::DEFAULT_VOICE_USAGE)
+                    .unwrap_or(0);
+            let tap_active = settings.voice_to_right_option && macos_tap::ensure_tap();
+            macos_tap::set_voice_keycode(if tap_active { voice_keycode } else { 0 });
             let mappings = build_mappings(settings, tap_active);
             let json = serde_json::json!({ "UserKeyMapping": mappings }).to_string();
             let matching = format!(r#"{{"VendorID":{VENDOR_ID},"ProductID":{PRODUCT_ID}}}"#);
@@ -237,24 +229,22 @@ mod macos {
         // With the event tap active, the voice key is driven by the ATVV
         // session engine and F5 is swallowed. Without Accessibility, fall back
         // to the old hidutil F5 -> right Option mapping.
-        if settings.voice_to_right_option && !tap_active && settings.voice_key.is_valid() {
-            mappings.push(mapping(settings.voice_key.usage as u32, 0xE6));
-        }
+        const VOICE_SOURCE: u32 = super::usage::DEFAULT_VOICE_USAGE as u32;
+        const HOME_SOURCE: u32 = super::usage::DEFAULT_HOME_USAGE as u32;
+        const TV_SOURCE: u32 = super::usage::DEFAULT_TV_USAGE as u32;
+        const BACK_SOURCE: u32 = super::usage::DEFAULT_BACK_USAGE as u32;
 
-        if settings.home_to_escape && settings.home_key.is_valid() {
-            mappings.push(mapping(settings.home_key.usage as u32, 0x29)); // Escape
+        if settings.voice_to_right_option && !tap_active {
+            mappings.push(mapping(VOICE_SOURCE, 0xE6));
         }
-        if settings.tv_to_backspace && settings.tv_key.is_valid() {
-            mappings.push(mapping(settings.tv_key.usage as u32, 0x2A)); // Backspace
+        if settings.home_to_escape && settings.home_target.is_valid() {
+            mappings.push(mapping(HOME_SOURCE, settings.home_target.usage as u32));
         }
-        if settings.back_key.is_valid() {
-            match settings.back_target {
-                BackTarget::None => {}
-                BackTarget::Backspace => {
-                    mappings.push(mapping(settings.back_key.usage as u32, 0x2A))
-                }
-                BackTarget::Escape => mappings.push(mapping(settings.back_key.usage as u32, 0x29)),
-            }
+        if settings.tv_to_backspace && settings.tv_target.is_valid() {
+            mappings.push(mapping(TV_SOURCE, settings.tv_target.usage as u32));
+        }
+        if settings.back_target != BackTarget::None && settings.back_target_key.is_valid() {
+            mappings.push(mapping(BACK_SOURCE, settings.back_target_key.usage as u32));
         }
         mappings
     }
@@ -395,10 +385,9 @@ mod tests {
             "back_target": "backspace"
         }"#;
         let parsed: KeyMapSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(parsed.voice_key.usage, usage::DEFAULT_VOICE_USAGE);
-        assert_eq!(parsed.home_key.usage, usage::DEFAULT_HOME_USAGE);
-        assert_eq!(parsed.tv_key.usage, usage::DEFAULT_TV_USAGE);
-        assert_eq!(parsed.back_key.usage, usage::DEFAULT_BACK_USAGE);
-        assert!(!parsed.voice_key.name.is_empty());
+        assert_eq!(parsed.home_target.usage, 0x29);
+        assert_eq!(parsed.tv_target.usage, 0x2A);
+        assert_eq!(parsed.back_target_key.usage, 0x2A);
+        assert!(!parsed.home_target.name.is_empty());
     }
 }

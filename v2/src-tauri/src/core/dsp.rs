@@ -4,6 +4,33 @@
 //! one-pole high-pass (~220 Hz) -> 3-tap smoothing -> adaptive noise gate ->
 //! fixed gain -> 16 kHz -> 48 kHz linear interpolation.
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct AudioProcessing {
+    pub noise_reduction: bool,
+    pub noise_gate: bool,
+    pub gain_db: f64,
+}
+
+impl Default for AudioProcessing {
+    fn default() -> Self {
+        Self {
+            noise_reduction: true,
+            noise_gate: true,
+            gain_db: 15.0,
+        }
+    }
+}
+
+impl AudioProcessing {
+    pub fn normalized(mut self) -> Self {
+        self.gain_db = self.gain_db.clamp(0.0, 30.0);
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NoiseReducer {
     prev_input: f64,
@@ -250,6 +277,15 @@ mod tests {
             gate.process(&[1000, -1000, 500, -500, 2000, -2000]),
             vec![1000, -1000, 500, -500, 2000, -2000]
         );
+    }
+
+    #[test]
+    fn audio_processing_clamps_gain() {
+        let processing = AudioProcessing {
+            gain_db: 99.0,
+            ..AudioProcessing::default()
+        };
+        assert_eq!(processing.normalized().gain_db, 30.0);
     }
 
     #[test]

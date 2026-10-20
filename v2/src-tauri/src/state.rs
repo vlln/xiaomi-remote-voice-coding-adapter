@@ -14,6 +14,7 @@ use crate::audio::{self, AudioDeviceInfo, CpalSink};
 use crate::ble::{self, EngineEvent};
 use crate::core::AudioSink;
 use crate::core::atvv::SessionSnapshot;
+use crate::core::dsp::AudioProcessing;
 use crate::keys::{KeyMapSettings, KeyMapper};
 use crate::recording::RecordingSink;
 
@@ -26,6 +27,7 @@ pub struct Settings {
     pub launch_at_login: bool,
     pub verbose_logs: bool,
     pub record_last_session: bool,
+    pub audio_processing: AudioProcessing,
 }
 
 impl Default for Settings {
@@ -37,6 +39,7 @@ impl Default for Settings {
             launch_at_login: false,
             verbose_logs: false,
             record_last_session: true,
+            audio_processing: AudioProcessing::default(),
         }
     }
 }
@@ -49,6 +52,7 @@ impl Settings {
         // The UI only exposes the last recording; always keep that one cache
         // file so the replay button works.
         self.record_last_session = true;
+        self.audio_processing = self.audio_processing.normalized();
         self
     }
 }
@@ -308,7 +312,12 @@ pub async fn start_engine(app: &AppHandle) -> Result<(), String> {
     let (event_tx, mut event_rx) = mpsc::channel::<EngineEvent>(128);
     let (stop_tx, stop_rx) = oneshot::channel::<()>();
 
-    let ble_task = tauri::async_runtime::spawn(ble::run(output, event_tx, stop_rx));
+    let ble_task = tauri::async_runtime::spawn(ble::run(
+        output,
+        settings.audio_processing.clone(),
+        event_tx,
+        stop_rx,
+    ));
     let app_for_events = app.clone();
     let event_task = tauri::async_runtime::spawn(async move {
         while let Some(event) = event_rx.recv().await {

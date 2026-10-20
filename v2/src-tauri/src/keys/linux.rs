@@ -182,10 +182,17 @@ fn build_virtual_keyboard(device: &Device) -> std::io::Result<VirtualDevice> {
 }
 
 fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEvent> {
-    let voice = usage::usage_to_evdev(settings.voice_key.usage).unwrap_or(KeyCode::KEY_F5.0);
-    let home = usage::usage_to_evdev(settings.home_key.usage).unwrap_or(KeyCode::KEY_HOME.0);
-    let tv = usage::usage_to_evdev(settings.tv_key.usage).unwrap_or(KeyCode::KEY_GRAVE.0);
-    let back = usage::usage_to_evdev(settings.back_key.usage).unwrap_or(KeyCode::KEY_BACK.0);
+    let voice = KeyCode::KEY_F5.0;
+    let home = KeyCode::KEY_HOME.0;
+    let tv = KeyCode::KEY_GRAVE.0;
+    let back = KeyCode::KEY_BACK.0;
+
+    let home_target =
+        usage::usage_to_evdev(settings.home_target.usage).unwrap_or(KeyCode::KEY_ESC.0);
+    let tv_target =
+        usage::usage_to_evdev(settings.tv_target.usage).unwrap_or(KeyCode::KEY_BACKSPACE.0);
+    let back_target =
+        usage::usage_to_evdev(settings.back_target_key.usage).unwrap_or(KeyCode::KEY_BACKSPACE.0);
 
     let mut output = Vec::with_capacity(events.len());
     for event in events {
@@ -198,28 +205,18 @@ fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEve
                 continue;
             }
             if settings.home_to_escape && code == home {
-                output.push(key_event(KeyCode::KEY_ESC.0, value));
+                output.push(key_event(home_target, value));
                 continue;
             }
             if settings.tv_to_backspace && code == tv {
-                output.push(key_event(KeyCode::KEY_BACKSPACE.0, value));
+                output.push(key_event(tv_target, value));
                 continue;
             }
-            if code == back
-                || (settings.back_key.usage == usage::DEFAULT_BACK_USAGE
-                    && code == KeyCode::KEY_HOMEPAGE.0)
+            if settings.back_target != BackTarget::None
+                && (code == back || code == KeyCode::KEY_HOMEPAGE.0)
             {
-                match settings.back_target {
-                    BackTarget::None => continue,
-                    BackTarget::Backspace => {
-                        output.push(key_event(KeyCode::KEY_BACKSPACE.0, value));
-                        continue;
-                    }
-                    BackTarget::Escape => {
-                        output.push(key_event(KeyCode::KEY_ESC.0, value));
-                        continue;
-                    }
-                }
+                output.push(key_event(back_target, value));
+                continue;
             }
         }
         output.push(event);
@@ -255,6 +252,7 @@ fn sleep_stop(stop: &AtomicBool, duration: Duration) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keys::KeySource;
 
     fn key(code: KeyCode) -> InputEvent {
         key_event(code.0, 1)
@@ -270,7 +268,8 @@ mod tests {
     #[test]
     fn maps_home_tv_and_back() {
         let mut settings = KeyMapSettings::default();
-        settings.back_target = BackTarget::Escape;
+        settings.back_target = BackTarget::Backspace;
+        settings.back_target_key = KeySource::new(0x29);
         let out = translate(
             vec![
                 key(KeyCode::KEY_HOME),

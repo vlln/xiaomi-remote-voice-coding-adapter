@@ -13,6 +13,7 @@ use btleplug::api::{
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::StreamExt;
 use serde::Serialize;
+use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{MissedTickBehavior, interval, sleep, timeout};
 use tracing::{debug, info, warn};
@@ -23,6 +24,7 @@ use crate::core::atvv::{
     Caps, GET_CAPS, Session, SessionCommand, SessionSnapshot, VOICE_AUDIO, VOICE_CONTROL,
     VOICE_SERVICE, VOICE_TX,
 };
+use crate::core::dsp::AudioProcessing;
 use crate::keys::voice_modifier;
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,12 +43,14 @@ pub enum EngineEvent {
 
 pub async fn run(
     output: Arc<dyn AudioSink>,
+    processing: AudioProcessing,
     events: mpsc::Sender<EngineEvent>,
     mut stop: oneshot::Receiver<()>,
 ) {
     let mut attempt = 0u32;
     loop {
-        let result = connect_and_stream(output.clone(), &events, &mut stop).await;
+        let result =
+            connect_and_stream(output.clone(), processing.clone(), &events, &mut stop).await;
         match result {
             Ok(()) => {
                 attempt = 0;
@@ -76,6 +80,11 @@ pub async fn run(
             }
         }
 
+        match stop.try_recv() {
+            Ok(()) | Err(TryRecvError::Closed) => break,
+            Err(TryRecvError::Empty) => {}
+        }
+
         let backoff = Duration::from_millis(1_500 + u64::from(attempt.min(4)) * 1_000);
         tokio::select! {
             _ = &mut stop => break,
@@ -87,6 +96,7 @@ pub async fn run(
 
 async fn connect_and_stream(
     output: Arc<dyn AudioSink>,
+    processing: AudioProcessing,
     events: &mpsc::Sender<EngineEvent>,
     stop: &mut oneshot::Receiver<()>,
 ) -> Result<(), String> {
@@ -201,7 +211,7 @@ async fn connect_and_stream(
         .await
         .map_err(|e| format!("notifications: {e}"))?;
 
-    let mut session = Session::new(output);
+    let mut session = Session::with_processing(output, processing);
     session.set_connected(true);
     let _ = events
         .send(EngineEvent::Status {

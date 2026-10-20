@@ -14,10 +14,15 @@ type KeyMapSettings = {
   home_to_escape: boolean;
   tv_to_backspace: boolean;
   back_target: BackTarget;
-  voice_key: KeySource;
-  home_key: KeySource;
-  tv_key: KeySource;
-  back_key: KeySource;
+  home_target: KeySource;
+  tv_target: KeySource;
+  back_target_key: KeySource;
+};
+
+type AudioProcessing = {
+  noise_reduction: boolean;
+  noise_gate: boolean;
+  gain_db: number;
 };
 
 type Settings = {
@@ -27,6 +32,7 @@ type Settings = {
   launch_at_login: boolean;
   verbose_logs: boolean;
   record_last_session: boolean;
+  audio_processing: AudioProcessing;
 };
 
 type SessionSnapshot = {
@@ -73,10 +79,9 @@ const DEFAULT_KEYS: KeyMapSettings = {
   home_to_escape: true,
   tv_to_backspace: true,
   back_target: "backspace",
-  voice_key: { usage: 0x3e, name: "F5" },
-  home_key: { usage: 0x4a, name: "Home" },
-  tv_key: { usage: 0x35, name: "`" },
-  back_key: { usage: 0xf1, name: "Back (AC Back)" },
+  home_target: { usage: 0x29, name: "Esc" },
+  tv_target: { usage: 0x2a, name: "Backspace" },
+  back_target_key: { usage: 0x2a, name: "Backspace" },
 };
 
 const ACTIONS: KeyAction[] = ["voice", "home", "tv", "back"];
@@ -93,20 +98,20 @@ const ACTION_META: Record<
   },
   home: {
     label: "Home 键",
-    desc: "遥控器主页键",
-    target: "Escape",
+    desc: "固定来源：遥控器 Home",
+    target: "Esc",
     icon: "home",
   },
   tv: {
     label: "TV 键",
-    desc: "遥控器电视键",
-    target: "Backspace",
+    desc: "固定来源：遥控器 TV",
+    target: "退格",
     icon: "tv",
   },
   back: {
     label: "返回键",
-    desc: "遥控器返回键",
-    target: "可配置",
+    desc: "固定来源：遥控器返回",
+    target: "退格",
     icon: "back",
   },
 };
@@ -268,6 +273,24 @@ function sourceLabel(source: KeySource) {
   );
 }
 
+function targetLabel(source: KeySource) {
+  if (source.name === "Escape" || source.name === "Esc") return "Esc";
+  if (source.name === "Backspace") return "退格";
+  if (source.name === "Return") return "回车";
+  if (source.name === "Space") return "空格";
+  if (source.name === "Delete") return "删除";
+  return sourceLabel(source);
+}
+
+function backendLabel(backend: string) {
+  if (backend.includes("event tap")) return "系统级映射";
+  if (backend.includes("hidutil")) return "兼容模式";
+  if (backend.includes("evdev")) return "系统级映射";
+  if (backend.includes("Interception")) return "系统级映射";
+  if (backend.includes("SendInput")) return "语音键";
+  return backend;
+}
+
 const HOTSPOTS: {
   action: KeyAction;
   label: string;
@@ -301,7 +324,7 @@ function RemoteVisual({
             }`}
             style={{ top: spot.top, left: spot.left }}
             disabled={disabled}
-            title={`${spot.label}：点击录制`}
+            title={`${spot.label}：设置目标键`}
             onClick={() => onPick(spot.action)}
           >
             <span className="hotspot-label">{spot.label}</span>
@@ -309,7 +332,7 @@ function RemoteVisual({
         ))}
       </div>
       <p className="remote-caption">
-        点击遥控器上的按键图标开始录制
+        点击遥控器按键，设置它的目标键
       </p>
     </div>
   );
@@ -322,6 +345,12 @@ function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState<Page>("overview");
   const [capturing, setCapturing] = useState<KeyAction | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    source: string;
+    target: string;
+    ok: boolean;
+  } | null>(null);
   const [guide, setGuide] = useState<Guide | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -383,19 +412,6 @@ function App() {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [snap?.logs.length, page]);
-
-  useEffect(() => {
-    if (!capturing) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        invoke("cancel_key_capture").catch(() => {});
-        setCapturing(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [capturing]);
 
   const dirty = useMemo(() => {
     if (!snap || !draft) return false;
@@ -478,7 +494,7 @@ function App() {
       desc: hintPresent
         ? `${snap.default_device} 已就绪`
         : platform === "linux"
-          ? "创建 PipeWire null sink，并选择它作为输出"
+          ? "创建 PipeWire 虚拟输出并选择它"
           : `安装 ${platform === "windows" ? "VB-CABLE" : "BlackHole"} 后选择它作为输出`,
       ok: hintPresent,
       action: hintPresent
@@ -602,26 +618,45 @@ function App() {
     }
   }
 
+  function targetFor(action: KeyAction): KeySource | null {
+    if (!draft) return null;
+    if (action === "home") return draft.key_map.home_target;
+    if (action === "tv") return draft.key_map.tv_target;
+    if (action === "back") return draft.key_map.back_target_key;
+    return null;
+  }
+
+  function enabledFor(action: KeyAction) {
+    if (!draft) return false;
+    if (action === "voice") return draft.key_map.voice_to_right_option;
+    if (action === "home") return draft.key_map.home_to_escape;
+    if (action === "tv") return draft.key_map.tv_to_backspace;
+    return draft.key_map.back_target !== "none";
+  }
+
   async function capture(action: KeyAction) {
-    if (!draft || busy) return;
+    if (!draft || busy || action === "voice") return;
     setCapturing(action);
+    setTestResult(null);
     try {
       const key = await invoke<CapturedKey>("capture_key");
-      const conflict = ACTIONS.find(
-        (other) =>
-          other !== action &&
-          draft.key_map[`${other}_key`].usage === key.usage,
-      );
-      if (conflict) {
-        setToast(
-          `这个按键已经用于「${ACTION_META[conflict].label}」，请换一个`,
+      const target = { usage: key.usage, name: key.name };
+      if (action === "home") {
+        await saveKeys(
+          { home_target: target, home_to_escape: true },
+          `Home 键 → ${key.name}`,
         );
-        return;
+      } else if (action === "tv") {
+        await saveKeys(
+          { tv_target: target, tv_to_backspace: true },
+          `TV 键 → ${key.name}`,
+        );
+      } else {
+        await saveKeys(
+          { back_target_key: target, back_target: "backspace" },
+          `返回键 → ${key.name}`,
+        );
       }
-      await saveKeys(
-        { [`${action}_key`]: { usage: key.usage, name: key.name } },
-        `已录制 ${key.name}`,
-      );
     } catch (error) {
       setToast(String(error));
     } finally {
@@ -634,8 +669,66 @@ function App() {
     setCapturing(null);
   }
 
+  async function testKey() {
+    if (!draft || !snap || busy || testing || !snap.key_capture_supported) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const key = await invoke<CapturedKey>("test_key");
+      const sourceUsage: Record<KeyAction, number> = {
+        voice: 0x3e,
+        home: 0x4a,
+        tv: 0x35,
+        back: 0xf1,
+      };
+      const action = ACTIONS.find((item) => sourceUsage[item] === key.usage);
+      if (!action) {
+        setTestResult({ source: key.name, target: "未绑定", ok: false });
+        return;
+      }
+      const meta = metaFor(action);
+      const enabled = enabledFor(action);
+      const target = !enabled
+        ? "已禁用"
+        : action === "voice"
+          ? voiceTarget
+          : targetLabel(targetFor(action)!);
+      setTestResult({ source: meta.label, target, ok: enabled });
+    } catch (error) {
+      setToast(String(error));
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  function cancelTest() {
+    invoke("cancel_key_capture").catch(() => {});
+    setTesting(false);
+  }
+
   async function resetKeys() {
-    await saveKeys(DEFAULT_KEYS, "已恢复默认按键");
+    await saveKeys(DEFAULT_KEYS, "已恢复默认");
+  }
+
+  async function saveProcessing(patchValue: Partial<AudioProcessing>) {
+    if (!draft) return;
+    const next = {
+      ...draft,
+      audio_processing: { ...draft.audio_processing, ...patchValue },
+    };
+    setDraft(next);
+    setBusy(true);
+    try {
+      const nextSnap = await invoke<Snapshot>("update_settings", {
+        settings: next,
+      });
+      setSnap(nextSnap);
+      setDraft(nextSnap.settings);
+    } catch (error) {
+      setToast(String(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function openAccessibility() {
@@ -686,6 +779,7 @@ function App() {
           'pactl load-module module-null-sink sink_name=xiaomi_remote sink_properties=device.description="Xiaomi Remote"';
         return (
           <>
+            <p>虚拟音频设备需要单独安装一次，应用本身不包含。</p>
             <p>在终端执行下面的命令，创建一个名为 Xiaomi Remote 的虚拟输出：</p>
             <pre className="code">{command}</pre>
             <p>然后在「音频」页把输出设备选为 Xiaomi Remote，在目标 App 里选择它的 Monitor。</p>
@@ -706,14 +800,15 @@ function App() {
           : "https://existential.audio/blackhole/";
       return (
         <>
+          <p>虚拟音频设备需要单独安装一次，应用本身不包含。</p>
           <p>
             {platform === "windows"
-              ? "安装 VB-CABLE，然后在音频页把输出设备选为 CABLE Input。"
+              ? "安装 VB-CABLE，然后在音频页把输出设备选为 CABLE 输入。"
               : "安装 BlackHole 2ch，然后在音频页把输出设备选为 BlackHole 2ch。"}
           </p>
           <p>
             {platform === "windows"
-              ? "目标 App 的麦克风设为 CABLE Output。"
+              ? "目标 App 的麦克风设为 CABLE 输出。"
               : "目标 App 的麦克风设为 BlackHole 2ch。"}
           </p>
           {platform === "macos" && (
@@ -744,9 +839,8 @@ function App() {
         return (
           <>
             <p>
-              打开「系统设置 → 隐私与安全性 → Device Control and Data Access」，
-              解锁后把 Xiaomi Remote 打开。授权后 App 会从 hidutil 回退切换到
-              macOS event tap。
+              打开「系统设置 → 隐私与安全性 → 设备控制与数据访问」，
+              解锁后把 Xiaomi Remote 打开。授权后 App 会切换到系统级按键映射。
             </p>
             <p>
               如果刚重装过 App，开关可能还指向旧签名；先关闭再打开一次，
@@ -786,7 +880,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           <p>Windows 的语音键通过 SendInput 注入，不需要额外权限。</p>
           <p>
             如果还需要 Home / TV / 返回键的设备级映射，需要安装 Interception
-            驱动并使用 optional feature 构建。
+            驱动并使用可选构建。
           </p>
           <div className="modal-actions">
             <button className="btn btn-primary" onClick={() => setGuide(null)}>
@@ -833,9 +927,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
     overview: { title: "概览", subtitle: "遥控器、麦克风和权限状态" },
     keys: {
       title: "按键映射",
-      subtitle: "点击按键，然后按下遥控器上的对应键",
+      subtitle: "遥控器按键固定，目标键可自定义",
     },
-    audio: { title: "音频", subtitle: "虚拟麦克风与录音" },
+    audio: { title: "音频", subtitle: "虚拟麦克风与音频处理" },
     advanced: { title: "高级", subtitle: "权限、启动项与运行日志" },
   };
 
@@ -848,7 +942,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.2</small>
+            <small>小米遥控器 2 · V2.3</small>
           </span>
         </div>
 
@@ -889,7 +983,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.2.0</div>
+          <div className="sidebar-version">{snap.platform} · 2.3.0</div>
         </div>
       </aside>
 
@@ -1012,7 +1106,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                   <div>
                     <h3>按键</h3>
                     <p>
-                      {status.key_backend} ·{" "}
+                      {backendLabel(status.key_backend)} ·{" "}
                       {snap.key_mapping_full ? "完整映射" : "仅语音键"}
                     </p>
                   </div>
@@ -1024,7 +1118,13 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                   {ACTIONS.map((action) => (
                     <div className="mini-key" key={action}>
                       <span>{ACTION_META[action].label}</span>
-                      <code>{sourceLabel(draft.key_map[`${action}_key`])}</code>
+                      <code>
+                        {action === "voice"
+                          ? voiceTarget
+                          : targetFor(action)
+                            ? targetLabel(targetFor(action)!)
+                            : "未设置"}
+                      </code>
                     </div>
                   ))}
                 </div>
@@ -1054,41 +1154,48 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>遥控器按键</h3>
-                    <p>
-                      点击按键或遥控器图标，然后按下实体按键；Esc 取消
-                    </p>
+                    <p>遥控器按键固定，点击目标键后按键盘上的按键</p>
                   </div>
-                  <button
-                    className="btn btn-small"
-                    onClick={resetKeys}
-                    disabled={busy}
-                  >
-                    恢复默认
-                  </button>
+                  <div className="section-tools">
+                    <button
+                      className="btn btn-small"
+                      onClick={testKey}
+                      disabled={!snap.key_capture_supported || testing || busy}
+                    >
+                      测试按键
+                    </button>
+                    <button
+                      className="btn btn-small"
+                      onClick={resetKeys}
+                      disabled={busy}
+                    >
+                      恢复默认
+                    </button>
+                  </div>
                 </div>
 
                 <div className="keys-layout">
                   <RemoteVisual
                     capturing={capturing}
                     disabled={!snap.key_capture_supported || busy}
-                    onPick={capture}
+                    onPick={(action) =>
+                      action === "voice"
+                        ? setToast(`语音键固定映射为${voiceTarget}`)
+                        : capture(action)
+                    }
                   />
 
                   <div className="keys-main">
                     <div className="key-list">
                       {ACTIONS.map((action) => {
                         const meta = metaFor(action);
-                        const source = draft.key_map[`${action}_key`];
-                        const enabled =
-                          action === "voice"
-                            ? draft.key_map.voice_to_right_option
-                            : action === "home"
-                              ? draft.key_map.home_to_escape
-                              : action === "tv"
-                                ? draft.key_map.tv_to_backspace
-                                : draft.key_map.back_target !== "none";
+                        const target = targetFor(action);
+                        const enabled = enabledFor(action);
                         const disabled =
                           !snap.key_mapping_full && action !== "voice";
+                        const targetName = target
+                          ? targetLabel(target)
+                          : "未设置";
                         return (
                           <div
                             className={`key-row ${disabled ? "is-disabled" : ""}`}
@@ -1104,45 +1211,29 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                               </div>
                             </div>
                             <div className="key-flow">
-                              <button
-                                className={`shortcut ${
-                                  capturing === action ? "capturing" : ""
-                                }`}
-                                disabled={
-                                  disabled ||
-                                  busy ||
-                                  !snap.key_capture_supported
-                                }
-                                onClick={() => capture(action)}
-                                title="点击重新录制"
-                              >
-                                <Icon name="keyboard" size={13} />
-                                {capturing === action
-                                  ? "按下按键…"
-                                  : sourceLabel(source)}
-                              </button>
                               <span className="arrow">→</span>
-                              {action === "back" ? (
-                                <select
-                                  className="select compact"
-                                  value={draft.key_map.back_target}
-                                  disabled={disabled || busy}
-                                  onChange={(event) =>
-                                    saveKeys(
-                                      {
-                                        back_target: event.target
-                                          .value as BackTarget,
-                                      },
-                                      "返回键目标已更新",
-                                    )
-                                  }
-                                >
-                                  <option value="backspace">Backspace</option>
-                                  <option value="escape">Escape</option>
-                                  <option value="none">不映射</option>
-                                </select>
+                              {action === "voice" ? (
+                                <span className="target locked">
+                                  {voiceTarget}
+                                </span>
                               ) : (
-                                <span className="target">{meta.target}</span>
+                                <button
+                                  className={`shortcut ${
+                                    capturing === action ? "capturing" : ""
+                                  }`}
+                                  disabled={
+                                    disabled ||
+                                    busy ||
+                                    !snap.key_capture_supported
+                                  }
+                                  onClick={() => capture(action)}
+                                  title="点击设置目标键"
+                                >
+                                  <Icon name="keyboard" size={13} />
+                                  {capturing === action
+                                    ? "按下按键…"
+                                    : targetName}
+                                </button>
                               )}
                               <Switch
                                 checked={enabled}
@@ -1172,16 +1263,28 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                       })}
                     </div>
 
+                    {testResult && (
+                      <div
+                        className={`test-result ${
+                          testResult.ok ? "ok" : "bad"
+                        }`}
+                      >
+                        <span>{testResult.source}</span>
+                        <span className="arrow">→</span>
+                        <strong>{testResult.target}</strong>
+                      </div>
+                    )}
+
                     {!snap.key_mapping_full && (
                       <p className="inline-note">
                         Windows 默认只支持语音键；Home / TV / 返回需要
-                        Interception 驱动和可选构建。
+                        Interception 驱动。
                       </p>
                     )}
                     <p className="inline-note">
                       {snap.key_capture_supported
-                        ? "录制复用 macOS「键盘控制权限」。如果点击后无法录制，请在系统设置 → 隐私与安全性 → Device Control and Data Access 中重新授权 Xiaomi Remote。"
-                        : "当前平台暂不支持录制按键；可以继续使用默认绑定。"}
+                        ? "录制需要键盘控制权限。"
+                        : "当前平台暂不支持录制，使用默认映射。"}
                     </p>
                   </div>
                 </div>
@@ -1195,12 +1298,27 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>虚拟麦克风</h3>
-                    <p>语音桥接会把 16 kHz 音频重采样到 48 kHz 输出</p>
+                    <p>写入虚拟音频设备</p>
                   </div>
                   <button className="btn btn-small" onClick={() => setGuide("mic")}>
                     安装指引
                   </button>
                 </div>
+
+                {!hintPresent && (
+                  <div className="audio-callout">
+                    <div>
+                      <strong>需要虚拟音频设备</strong>
+                      <span>应用写入虚拟输出，会议软件读取它的输入。</span>
+                    </div>
+                    <button
+                      className="btn btn-small btn-primary"
+                      onClick={() => setGuide("mic")}
+                    >
+                      去安装
+                    </button>
+                  </div>
+                )}
 
                 <label className="field">
                   <span>输出设备</span>
@@ -1225,27 +1343,86 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                   </select>
                 </label>
 
-                <div className="format-row">
-                  <span className="format-pill">48 kHz</span>
-                  <span className="format-pill">2 ch</span>
-                  <span className="format-pill">16 → 48 kHz</span>
-                </div>
-
                 <p className="inline-note">
-                  设备列表会自动刷新，无需手动刷新。
+                  设备自动刷新。
                   {platform === "macos"
-                    ? " macOS 推荐 BlackHole 2ch。"
+                    ? " 推荐 BlackHole 2ch。"
                     : platform === "windows"
-                      ? " Windows 推荐 VB-CABLE。"
-                      : " Linux 使用 PipeWire null sink。"}
+                      ? " 推荐 VB-CABLE。"
+                      : " 使用 PipeWire 虚拟输出。"}
                 </p>
               </section>
 
               <section className="section">
                 <div className="section-head">
                   <div>
+                    <h3>音频处理</h3>
+                    <p>调整后自动重启音频桥接</p>
+                  </div>
+                </div>
+                <div className="processing-list">
+                  <div className="row">
+                    <div className="row-main">
+                      <Icon name="wave" size={17} />
+                      <div>
+                        <strong>降噪</strong>
+                        <span>抑制稳态背景噪声</span>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={draft.audio_processing.noise_reduction}
+                      label="降噪"
+                      onChange={(value) =>
+                        saveProcessing({ noise_reduction: value })
+                      }
+                    />
+                  </div>
+                  <div className="row">
+                    <div className="row-main">
+                      <Icon name="wave" size={17} />
+                      <div>
+                        <strong>噪声门</strong>
+                        <span>安静时压低底噪</span>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={draft.audio_processing.noise_gate}
+                      label="噪声门"
+                      onChange={(value) => saveProcessing({ noise_gate: value })}
+                    />
+                  </div>
+                  <div className="row">
+                    <div className="row-main">
+                      <Icon name="mic" size={17} />
+                      <div>
+                        <strong>增益</strong>
+                        <span>输出音量</span>
+                      </div>
+                    </div>
+                    <select
+                      className="select compact"
+                      value={draft.audio_processing.gain_db}
+                      onChange={(event) =>
+                        saveProcessing({
+                          gain_db: Number(event.target.value),
+                        })
+                      }
+                    >
+                      <option value={0}>0 dB</option>
+                      <option value={6}>6 dB</option>
+                      <option value={9}>9 dB</option>
+                      <option value={12}>12 dB</option>
+                      <option value={15}>15 dB</option>
+                      <option value={18}>18 dB</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <section className="section">
+                <div className="section-head">
+                  <div>
                     <h3>回放</h3>
-                    <p>只缓存最近一次录音，不需要管理文件</p>
                   </div>
                 </div>
                 <div className="row">
@@ -1254,9 +1431,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                     <div>
                       <strong>上次录音</strong>
                       <span>
-                        {snap.last_recording
-                          ? "已缓存，可以直接播放"
-                          : "按一次语音键后生成"}
+                        {snap.last_recording ? "可播放" : "暂无录音"}
                       </span>
                     </div>
                   </div>
@@ -1336,7 +1511,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.2.0</strong>
+                    <strong>2.3.0</strong>
                   </div>
                   <div>
                     <span>平台</span>
@@ -1344,7 +1519,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                   </div>
                   <div>
                     <span>按键后端</span>
-                    <strong>{status.key_backend}</strong>
+                    <strong>{backendLabel(status.key_backend)}</strong>
                   </div>
                   <div>
                     <span>音频链路</span>
@@ -1380,12 +1555,28 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="capture-key">
               <Icon name="keyboard" size={30} />
             </span>
-            <h2>按下遥控器上的按键</h2>
+            <h2>按下要映射到的按键</h2>
             <p>
-              正在录制「{ACTION_META[capturing].label}」，按下后立即生效
+              正在设置「{ACTION_META[capturing].label}」的目标键
             </p>
             <span className="capture-timer">10 秒后自动取消</span>
             <button className="btn btn-ghost" onClick={cancelCapture}>
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
+      {testing && (
+        <div className="capture-overlay">
+          <div className="capture-card">
+            <span className="capture-key">
+              <Icon name="keyboard" size={30} />
+            </span>
+            <h2>按下遥控器按键</h2>
+            <p>正在测试映射，按键会实际发送</p>
+            <span className="capture-timer">10 秒后自动取消</span>
+            <button className="btn btn-ghost" onClick={cancelTest}>
               取消
             </button>
           </div>

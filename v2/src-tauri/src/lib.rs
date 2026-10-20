@@ -49,7 +49,10 @@ async fn update_settings(app: AppHandle, settings: Settings) -> Result<Snapshot,
             .log("warn", format!("按键映射未应用: {err}"));
     }
     let _ = state::set_launch_at_login(&app, settings.launch_at_login).await;
-    if was_running && previous.audio_device != settings.audio_device {
+    if was_running
+        && (previous.audio_device != settings.audio_device
+            || previous.audio_processing != settings.audio_processing)
+    {
         state::stop_engine(&app).await?;
         state::start_engine(&app).await?;
     }
@@ -84,6 +87,11 @@ fn open_accessibility_settings() {
 #[tauri::command]
 async fn capture_key() -> Result<keys::capture::CapturedKey, String> {
     keys::capture::capture_next_key().await
+}
+
+#[tauri::command]
+async fn test_key() -> Result<keys::capture::CapturedKey, String> {
+    keys::capture::observe_next_key().await
 }
 
 #[tauri::command]
@@ -217,6 +225,7 @@ pub fn run() {
             clear_key_mapping,
             open_accessibility_settings,
             capture_key,
+            test_key,
             cancel_key_capture,
             open_url,
             open_last_recording,

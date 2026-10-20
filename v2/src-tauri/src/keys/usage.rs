@@ -131,6 +131,14 @@ pub fn usage_to_macos_keycode(usage: u16) -> Option<u16> {
         0x50 => 123,
         0x51 => 125,
         0x52 => 126,
+        0xE0 => 59,
+        0xE1 => 56,
+        0xE2 => 58,
+        0xE3 => 55,
+        0xE4 => 62,
+        0xE5 => 60,
+        0xE6 => 61,
+        0xE7 => 54,
         _ => return None,
     };
     Some(code)
@@ -196,6 +204,14 @@ pub fn usage_to_evdev(usage: u16) -> Option<u16> {
         0x51 => 108,
         0x52 => 103,
         0xF1 => 158,
+        0xE0 => 29,
+        0xE1 => 42,
+        0xE2 => 56,
+        0xE3 => 125,
+        0xE4 => 97,
+        0xE5 => 54,
+        0xE6 => 100,
+        0xE7 => 126,
         _ => return None,
     };
     Some(code)
@@ -269,6 +285,14 @@ pub fn usage_to_scancode(usage: u16) -> Option<(u16, bool)> {
         0x51 => (0x50, true),
         0x52 => (0x48, true),
         0xF1 => (0x6A, true),
+        0xE0 => (0x1D, false),
+        0xE1 => (0x2A, false),
+        0xE2 => (0x38, false),
+        0xE3 => (0x5B, true),
+        0xE4 => (0x1D, true),
+        0xE5 => (0x36, false),
+        0xE6 => (0x38, true),
+        0xE7 => (0x5C, true),
         _ => return None,
     };
     Some(value)
@@ -346,6 +370,15 @@ pub fn macos_keycode_to_usage(keycode: u16) -> Option<u16> {
         123 => 0x50,
         125 => 0x51,
         126 => 0x52,
+        54 => 0xE7,
+        55 => 0xE3,
+        56 => 0xE1,
+        57 => 0x39,
+        58 => 0xE2,
+        59 => 0xE0,
+        60 => 0xE5,
+        61 => 0xE6,
+        62 => 0xE4,
         _ => return None,
     };
     Some(usage)

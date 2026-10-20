@@ -26,7 +26,7 @@ use tracing::{debug, info, warn};
 
 static VOICE_KEYCODE: AtomicU16 = AtomicU16::new(96);
 static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
-static CAPTURE_CANCELLED: AtomicBool = AtomicBool::new(false);
+static CAPTURE_SWALLOW: AtomicBool = AtomicBool::new(true);
 static CAPTURE_TX: parking_lot::Mutex<Option<oneshot::Sender<u16>>> = parking_lot::Mutex::new(None);
 
 static TAP_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -54,7 +54,7 @@ pub fn set_voice_keycode(keycode: u16) {
     VOICE_KEYCODE.store(keycode, Ordering::Relaxed);
 }
 
-pub async fn capture_next_key(timeout: Duration) -> Result<u16, String> {
+async fn wait_for_key(timeout: Duration, swallow: bool) -> Result<u16, String> {
     if !is_active() && !ensure_tap() {
         return Err("需要键盘控制权限才能录制按键".into());
     }
@@ -63,7 +63,7 @@ pub async fn capture_next_key(timeout: Duration) -> Result<u16, String> {
     }
 
     let (tx, rx) = oneshot::channel();
-    CAPTURE_CANCELLED.store(false, Ordering::SeqCst);
+    CAPTURE_SWALLOW.store(swallow, Ordering::SeqCst);
     *CAPTURE_TX.lock() = Some(tx);
     let result = tokio::time::timeout(timeout, rx).await;
     CAPTURE_ACTIVE.store(false, Ordering::SeqCst);
@@ -71,10 +71,19 @@ pub async fn capture_next_key(timeout: Duration) -> Result<u16, String> {
 
     match result {
         Ok(Ok(keycode)) => Ok(keycode),
-        Ok(Err(_)) if CAPTURE_CANCELLED.load(Ordering::SeqCst) => Err("按键捕获已取消".into()),
         Ok(Err(_)) => Err("按键捕获已取消".into()),
         Err(_) => Err("等待按键超时，请重试".into()),
     }
+}
+
+pub async fn capture_next_key(timeout: Duration) -> Result<u16, String> {
+    // Capture for a binding: swallow the key and allow Escape as a target.
+    wait_for_key(timeout, true).await
+}
+
+pub async fn observe_next_key(timeout: Duration) -> Result<u16, String> {
+    // Test mode: let the key through so the user can see its real effect.
+    wait_for_key(timeout, false).await
 }
 
 pub fn cancel_capture() {
@@ -112,14 +121,14 @@ fn start_tap() -> bool {
                     // Swallow the captured key so it does not trigger a
                     // shortcut in the app behind the capture sheet.
                     if matches!(event_type, CGEventType::KeyDown) {
-                        if keycode == 53 {
-                            CAPTURE_CANCELLED.store(true, Ordering::SeqCst);
-                            CAPTURE_TX.lock().take();
-                        } else if let Some(tx) = CAPTURE_TX.lock().take() {
+                        if let Some(tx) = CAPTURE_TX.lock().take() {
                             let _ = tx.send(keycode);
                         }
                     }
-                    return CallbackResult::Drop;
+                    if CAPTURE_SWALLOW.load(Ordering::SeqCst) {
+                        return CallbackResult::Drop;
+                    }
+                    return CallbackResult::Keep;
                 }
                 let voice_keycode = VOICE_KEYCODE.load(Ordering::Relaxed);
                 if voice_keycode == 0 || keycode != voice_keycode {
