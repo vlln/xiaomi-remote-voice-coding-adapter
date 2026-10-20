@@ -95,6 +95,16 @@ async fn test_key() -> Result<keys::capture::CapturedKey, String> {
 }
 
 #[tauri::command]
+fn start_key_test(app: AppHandle) -> Result<(), String> {
+    keys::capture::start_test(app)
+}
+
+#[tauri::command]
+fn stop_key_test() {
+    keys::capture::stop_test();
+}
+
+#[tauri::command]
 fn cancel_key_capture() {
     keys::capture::cancel();
 }
@@ -226,6 +236,8 @@ pub fn run() {
             open_accessibility_settings,
             capture_key,
             test_key,
+            start_key_test,
+            stop_key_test,
             cancel_key_capture,
             open_url,
             open_last_recording,

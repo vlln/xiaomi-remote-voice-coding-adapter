@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, AtomicU16, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
-use tokio::sync::oneshot;
+use tokio::sync::{broadcast, oneshot};
 
 use core_foundation::base::TCFType;
 use core_foundation::runloop::{CFRunLoop, kCFRunLoopCommonModes};
@@ -28,6 +28,8 @@ static VOICE_KEYCODE: AtomicU16 = AtomicU16::new(96);
 static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CAPTURE_SWALLOW: AtomicBool = AtomicBool::new(true);
 static CAPTURE_TX: parking_lot::Mutex<Option<oneshot::Sender<u16>>> = parking_lot::Mutex::new(None);
+static TEST_ACTIVE: AtomicBool = AtomicBool::new(false);
+static TEST_TX: parking_lot::Mutex<Option<broadcast::Sender<u16>>> = parking_lot::Mutex::new(None);
 
 static TAP_ACTIVE: AtomicBool = AtomicBool::new(false);
 static TAP_INIT: parking_lot::Mutex<Option<bool>> = parking_lot::Mutex::new(None);
@@ -91,6 +93,27 @@ pub fn cancel_capture() {
     CAPTURE_ACTIVE.store(false, Ordering::SeqCst);
 }
 
+pub fn start_test() -> Result<broadcast::Receiver<u16>, String> {
+    if CAPTURE_ACTIVE.load(Ordering::SeqCst) {
+        return Err("正在录制按键，先完成录制".into());
+    }
+    if TEST_ACTIVE.swap(true, Ordering::SeqCst) {
+        return Err("测试模式已在运行".into());
+    }
+    if !is_active() && !ensure_tap() {
+        TEST_ACTIVE.store(false, Ordering::SeqCst);
+        return Err("需要键盘控制权限才能测试按键".into());
+    }
+    let (tx, rx) = broadcast::channel(64);
+    *TEST_TX.lock() = Some(tx);
+    Ok(rx)
+}
+
+pub fn stop_test() {
+    TEST_ACTIVE.store(false, Ordering::SeqCst);
+    TEST_TX.lock().take();
+}
+
 fn modifier_down(keycode: u16, flags: core_graphics::event::CGEventFlags) -> bool {
     use core_graphics::event::CGEventFlags;
     match keycode {
@@ -136,6 +159,19 @@ fn start_tap() -> bool {
                 }
                 let keycode =
                     event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE) as u16;
+                if TEST_ACTIVE.load(Ordering::Relaxed) {
+                    let pressed = match event_type {
+                        CGEventType::KeyDown => true,
+                        CGEventType::FlagsChanged => modifier_down(keycode, event.get_flags()),
+                        _ => false,
+                    };
+                    if pressed {
+                        if let Some(tx) = TEST_TX.lock().as_ref() {
+                            let _ = tx.send(keycode);
+                        }
+                    }
+                    return CallbackResult::Keep;
+                }
                 if CAPTURE_ACTIVE.load(Ordering::Relaxed) {
                     // Modifiers arrive as FlagsChanged; only capture the press
                     // transition so the release does not overwrite the result.

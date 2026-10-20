@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.5.3
+
+### Fixed
+
+- Hotspot positions now use the coordinates measured by the user with `tools/align-hotspots.html`
+
+## 2.5.2
+
+### Changed
+
+- 「测试按键」改为持续模式，连续按键会持续高亮并显示结果，可手动停止
+
+### Added
+
+- `tools/align-hotspots.html`：可视拖动橙圈并生成百分比
+
 ## 2.5.1
 
 ### Fixed

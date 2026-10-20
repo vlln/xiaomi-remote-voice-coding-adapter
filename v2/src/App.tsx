@@ -337,11 +337,11 @@ const HOTSPOTS: {
   top: string;
   left: string;
 }[] = [
-  { action: "voice", label: "语音键", top: "12.0%", left: "71.8%" },
-  { action: "back", label: "返回键", top: "41.6%", left: "35.0%" },
-  { action: "home", label: "Home 键", top: "50.8%", left: "35.0%" },
-  { action: "tv", label: "TV 键", top: "59.7%", left: "71.8%" },
-  { action: "menu", label: "菜单键", top: "59.7%", left: "35.0%" },
+  { action: "voice", label: "语音键", top: "11.5%", left: "66.5%" },
+  { action: "back", label: "返回键", top: "39.7%", left: "33.7%" },
+  { action: "home", label: "Home 键", top: "48.3%", left: "34.2%" },
+  { action: "tv", label: "TV 键", top: "56.7%", left: "63.0%" },
+  { action: "menu", label: "菜单键", top: "56.8%", left: "33.8%" },
 ];
 
 function RemoteVisual({
@@ -398,6 +398,7 @@ function App() {
   const [guide, setGuide] = useState<Guide | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const testHandlerRef = useRef<(key: CapturedKey) => void>(() => {});
 
   useEffect(() => {
     let disposed = false;
@@ -442,6 +443,27 @@ function App() {
       disposed = true;
       window.clearInterval(timer);
       unlisteners.forEach((unlisten) => unlisten());
+    };
+  }, []);
+
+  useEffect(() => {
+    let unlistenKey: (() => void) | undefined;
+    let unlistenError: (() => void) | undefined;
+    listen<CapturedKey>("key-test", (event) => {
+      testHandlerRef.current(event.payload);
+    }).then((unlisten) => {
+      unlistenKey = unlisten;
+    });
+    listen<string>("key-test-error", (event) => {
+      setToast(event.payload);
+      setTesting(false);
+    }).then((unlisten) => {
+      unlistenError = unlisten;
+    });
+    return () => {
+      unlistenKey?.();
+      unlistenError?.();
+      invoke("stop_key_test").catch(() => {});
     };
   }, []);
 
@@ -755,6 +777,7 @@ function App() {
 
     setTestResult({ source: key.name, target: "未绑定", ok: false });
   }
+  testHandlerRef.current = handleTestKey;
 
   async function startTest() {
     if (
@@ -767,16 +790,19 @@ function App() {
     ) {
       return;
     }
-    setTesting(true);
     setTestResult(null);
     try {
-      const key = await invoke<CapturedKey>("test_key");
-      handleTestKey(key);
+      await invoke("start_key_test");
+      setTesting(true);
     } catch (error) {
       setToast(String(error));
-    } finally {
-      setTesting(false);
     }
+  }
+
+  function stopTest() {
+    invoke("stop_key_test").catch(() => {});
+    setTesting(false);
+    setPressedAction(null);
   }
 
   async function resetKeys() {
@@ -1009,7 +1035,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5.1</small>
+            <small>小米遥控器 2 · V2.5.3</small>
           </span>
         </div>
 
@@ -1050,7 +1076,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.1</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.3</div>
         </div>
       </aside>
 
@@ -1245,15 +1271,14 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                   <div className="section-tools">
                     <button
                       className="btn btn-small"
-                      onClick={startTest}
+                      onClick={testing ? stopTest : startTest}
                       disabled={
                         !snap.key_capture_supported ||
                         busy ||
-                        testing ||
                         Boolean(capturing)
                       }
                     >
-                      {testing ? "测试中…" : "测试按键"}
+                      {testing ? "停止测试" : "测试按键"}
                     </button>
                     <button
                       className="btn btn-small"
@@ -1268,7 +1293,10 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 {testing && (
                   <div className="test-live">
                     <span className="status-dot recording" />
-                    测试中 · 按下遥控器按键
+                    测试中 · 连续按下遥控器按键
+                    <button className="btn btn-text" onClick={stopTest}>
+                      停止
+                    </button>
                   </div>
                 )}
 
@@ -1605,7 +1633,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.1</strong>
+                    <strong>2.5.3</strong>
                   </div>
                   <div>
                     <span>平台</span>
