@@ -60,6 +60,12 @@ sudo apt-get install -f
 
 需要 PipeWire/PulseAudio null sink（未真机验证）。
 
+## 界面截图
+
+- [概览](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/screenshot.png)
+- [按键映射](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png)
+- [持续按键测试](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/capture.png)
+
 ## 已知限制
 
 - Windows/Linux 已完成 CI 单元测试和安装包构建，但**未做真机验证**；BLE/音频/按键需要自行测试。

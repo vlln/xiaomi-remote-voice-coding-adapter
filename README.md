@@ -19,8 +19,6 @@ BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 ·
 
 </div>
 
-![概览](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/screenshot.png)
-
 ## 它做什么
 
 - **语音键 → 任意键**：按住遥控器说话，麦克风音频进入 BlackHole / VB-CABLE / PipeWire；语音键可以映射成右 Option、F6、Ctrl 等任意目标键。
@@ -28,9 +26,19 @@ BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 ·
 - **持续按键测试**：点一次测试，连续按遥控器键，左侧遥控器图实时高亮并显示映射结果；测试期间拦截真实按键，不会误触发。
 - **干净的菜单栏 App**：概览、按键映射、音频、高级四个页面；音频处理（降噪 / 噪声门 / 增益）、快速设置、Star 引导。
 
-| 按键映射 | 测试与按压效果 |
-|:---:|:---:|
-| ![按键映射](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png) | ![按键测试](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/capture.png) |
+## 界面
+
+### 概览
+
+![概览](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/screenshot.png)
+
+### 按键映射
+
+![按键映射](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png)
+
+### 持续按键测试
+
+![持续按键测试](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/capture.png)
 
 ## 下载
 
