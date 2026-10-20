@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.1
+
+### Fixed
+
+- Target capture accepts Ctrl/Alt/Shift/Command and the numeric keypad
+- Corrected remote hotspot positions and made the pressed state look inset
+
 ## 2.5.0
 
 ### Changed

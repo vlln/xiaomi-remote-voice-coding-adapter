@@ -337,11 +337,11 @@ const HOTSPOTS: {
   top: string;
   left: string;
 }[] = [
-  { action: "voice", label: "语音键", top: "10.9%", left: "67.7%" },
-  { action: "back", label: "返回键", top: "40.1%", left: "35.5%" },
-  { action: "home", label: "Home 键", top: "48.4%", left: "35.5%" },
-  { action: "tv", label: "TV 键", top: "56.3%", left: "67.7%" },
-  { action: "menu", label: "菜单键", top: "56.3%", left: "35.5%" },
+  { action: "voice", label: "语音键", top: "12.0%", left: "71.8%" },
+  { action: "back", label: "返回键", top: "41.6%", left: "35.0%" },
+  { action: "home", label: "Home 键", top: "50.8%", left: "35.0%" },
+  { action: "tv", label: "TV 键", top: "59.7%", left: "71.8%" },
+  { action: "menu", label: "菜单键", top: "59.7%", left: "35.0%" },
 ];
 
 function RemoteVisual({
@@ -1009,7 +1009,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5</small>
+            <small>小米遥控器 2 · V2.5.1</small>
           </span>
         </div>
 
@@ -1050,7 +1050,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.0</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.1</div>
         </div>
       </aside>
 
@@ -1605,7 +1605,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.0</strong>
+                    <strong>2.5.1</strong>
                   </div>
                   <div>
                     <span>平台</span>

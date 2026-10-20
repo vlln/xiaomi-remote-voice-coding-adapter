@@ -1,6 +1,6 @@
 [package]
 name = "xiaomi-remote-v2"
-version = "2.5.0"
+version = "2.5.1"
 description = "Cross-platform Xiaomi Bluetooth Voice Remote bridge"
 authors = ["vlln"]
 edition = "2024"

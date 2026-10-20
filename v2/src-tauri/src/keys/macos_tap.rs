@@ -91,6 +91,18 @@ pub fn cancel_capture() {
     CAPTURE_ACTIVE.store(false, Ordering::SeqCst);
 }
 
+fn modifier_down(keycode: u16, flags: core_graphics::event::CGEventFlags) -> bool {
+    use core_graphics::event::CGEventFlags;
+    match keycode {
+        56 | 60 => flags.contains(CGEventFlags::CGEventFlagShift),
+        59 | 62 => flags.contains(CGEventFlags::CGEventFlagControl),
+        58 | 61 => flags.contains(CGEventFlags::CGEventFlagAlternate),
+        55 | 54 => flags.contains(CGEventFlags::CGEventFlagCommand),
+        57 => flags.contains(CGEventFlags::CGEventFlagAlphaShift),
+        _ => false,
+    }
+}
+
 fn start_tap() -> bool {
     let (ready_tx, ready_rx) = mpsc::sync_channel::<bool>(1);
     let builder = std::thread::Builder::new().name("macos-key-event-tap".into());
@@ -99,7 +111,11 @@ fn start_tap() -> bool {
             CGEventTapLocation::HID,
             CGEventTapPlacement::HeadInsertEventTap,
             CGEventTapOptions::Default,
-            vec![CGEventType::KeyDown, CGEventType::KeyUp],
+            vec![
+                CGEventType::KeyDown,
+                CGEventType::KeyUp,
+                CGEventType::FlagsChanged,
+            ],
             |_proxy, event_type, event| {
                 if matches!(
                     event_type,
@@ -112,15 +128,25 @@ fn start_tap() -> bool {
                     }
                     return CallbackResult::Keep;
                 }
-                if !matches!(event_type, CGEventType::KeyDown | CGEventType::KeyUp) {
+                if !matches!(
+                    event_type,
+                    CGEventType::KeyDown | CGEventType::KeyUp | CGEventType::FlagsChanged
+                ) {
                     return CallbackResult::Keep;
                 }
                 let keycode =
                     event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE) as u16;
                 if CAPTURE_ACTIVE.load(Ordering::Relaxed) {
+                    // Modifiers arrive as FlagsChanged; only capture the press
+                    // transition so the release does not overwrite the result.
+                    let pressed = match event_type {
+                        CGEventType::KeyDown => true,
+                        CGEventType::FlagsChanged => modifier_down(keycode, event.get_flags()),
+                        _ => false,
+                    };
                     // Swallow the captured key so it does not trigger a
                     // shortcut in the app behind the capture sheet.
-                    if matches!(event_type, CGEventType::KeyDown) {
+                    if pressed {
                         if let Some(tx) = CAPTURE_TX.lock().take() {
                             let _ = tx.send(keycode);
                         }
