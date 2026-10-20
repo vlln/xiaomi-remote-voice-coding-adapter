@@ -7,24 +7,24 @@ V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库�
 > **发布状态（V2.5.6）**
 >
 > - **macOS**：已在真实设备验证（Apple Silicon，macOS 27），并通过 24/24 单元测试。
-> - **Windows**：**未测试**。本次没有在 Windows 真机验证 BLE、音频和按键链路。
-> - **Linux**：**未测试**。本次没有在 Linux 真机验证 BLE、音频和按键链路。
+> - **Windows**：CI（windows-latest）上 **23/23 单元测试通过**，并成功构建 NSIS 安装包；**尚未在 Windows 真机验证 BLE、音频和按键链路**。
+> - **Linux**：CI（ubuntu-22.04）上 **25/25 单元测试通过**，并成功构建 `.deb`；**尚未在 Linux 真机验证 BLE、音频和按键链路**。
 >
-> Windows/Linux 保留代码路径，但不属于本次验证范围；请勿把 macOS 的结论外推到其他平台。
+> 三个平台都已构建安装包；但“CI 构建/单元测试通过”不等于“真机可用”。macOS 是唯一完成实机验证的平台。
 
 ![Xiaomi Remote V2](docs/screenshot.png)
 
 ## 下载
 
-- **macOS（arm64）**：[GitHub Releases](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases) 发布后下载 DMG；本地构建产物在 `src-tauri/target/release/bundle/dmg/`。
-- **Windows / Linux**：本次**不提供经过验证的安装包**。可以按下方「开发」从源码构建，但需要自行完成真机验证。
+Release: [v2.5.6](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.6)
 
-当前 macOS DMG：
+| 平台 | 安装包 | SHA-256 |
+|---|---|---|
+| macOS arm64 | [Xiaomi.Remote_2.5.6_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.6/Xiaomi.Remote_2.5.6_aarch64.dmg) | `1707760552744e043c04f14d4471793076856f016d3058d9dbeb8b7023c082f0` |
+| Windows x64 | [Xiaomi.Remote_2.5.6_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.6/Xiaomi.Remote_2.5.6_x64-setup.exe) | `8dd7cbff39bb67bdc6ae660ecfa6028e1ea8d8dcb18c0e8616c152290d4733b0` |
+| Linux amd64 | [Xiaomi.Remote_2.5.6_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.6/Xiaomi.Remote_2.5.6_amd64.deb) | `b827d7d23e667a1f07bb34fa502e04ea93ac8367abb07ecd0da307abb161755e` |
 
-```text
-Xiaomi Remote_2.5.6_aarch64.dmg
-SHA-256 0d365322332bbc0098c0f8e9250d0152a04be9d5d0dc4235b4f069372b50f10e
-```
+> Windows/Linux 包由 CI 构建并跑过单元测试，但**没有真机验证** BLE/音频/按键；请按实验性版本对待。macOS 已实机验证。
 
 ## 快速开始
 
@@ -38,7 +38,7 @@ pnpm install
 
 首次打开按「概览 → 快速设置」完成三步：安装/选择虚拟麦克风、授权键盘控制、连接遥控器。然后到「按键映射」点击某个按键，按下遥控器上的对应键即可重新绑定。
 
-Windows / Linux 目前没有经过验证的安装包；请从源码构建并自行实机验证，见下方「开发」。
+Windows / Linux 已有 CI 构建的安装包（见「下载」），但**没有真机验证**；也可以按下方「开发」从源码构建。
 
 ## 功能
 
@@ -64,14 +64,14 @@ Windows / Linux 目前没有经过验证的安装包；请从源码构建并自�
 
 | 能力 | macOS | Windows | Linux |
 |---|---|---|---|
-| BLE 语音桥接 | ✅ 已实机验证 | ⚠️ 未测试 | ⚠️ 未测试 |
-| 虚拟麦克风输出 | BlackHole 2ch（已验证） | VB-CABLE / Virtual Audio Cable（未测试） | PipeWire / PulseAudio null sink（未测试） |
-| 按键映射 | ✅ `hidutil` + EventTap | ⚠️ 仅代码路径；需自行验证 | ⚠️ 仅代码路径；需自行验证 |
-| 菜单栏 / 托盘 | ✅ 已实机验证 | ⚠️ 未测试 | ⚠️ 未测试 |
-| 开机自启 | ✅ LaunchAgent 已验证 | ⚠️ 未测试 | ⚠️ 未测试 |
-| 录音回放 | ✅ | ⚠️ 未测试 | ⚠️ 未测试 |
+| BLE 语音桥接 | ✅ 已实机验证 | ⚠️ 未真机验证 | ⚠️ 未真机验证 |
+| 虚拟麦克风输出 | BlackHole 2ch（已验证） | VB-CABLE / Virtual Audio Cable（未真机验证） | PipeWire / PulseAudio null sink（未真机验证） |
+| 按键映射 | ✅ `hidutil` + EventTap | ⚠️ CI 构建/单测通过；未真机验证 | ⚠️ CI 构建/单测通过；未真机验证 |
+| 菜单栏 / 托盘 | ✅ 已实机验证 | ⚠️ 未真机验证 | ⚠️ 未真机验证 |
+| 开机自启 | ✅ LaunchAgent 已验证 | ⚠️ 未真机验证 | ⚠️ 未真机验证 |
+| 录音回放 | ✅ | ⚠️ 未真机验证 | ⚠️ 未真机验证 |
 
-> **代码存在不等于已验证。** V2.5.6 的验证结论只覆盖 macOS；Windows/Linux 需要在对应真机上重新验证 BLE 配对、音频设备、按键后端和安装包。
+> **构建通过 ≠ 真机可用。** Windows/Linux 的结论来自 GitHub Actions 的单元测试和安装包构建；BLE 配对、音频设备、按键钩子仍未在真实设备上验证。macOS 是唯一完整实机验证的平台。
 
 ## 架构
 
@@ -175,6 +175,8 @@ cargo test --lib
 
 ### Windows
 
+安装包：[Xiaomi.Remote_2.5.6_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.6/Xiaomi.Remote_2.5.6_x64-setup.exe)（未真机验证）。
+
 1. 安装 [VB-CABLE](https://vb-audio.com/Cable/)。
 2. App 的音频输出选择 **CABLE Input**。
 3. 在目标 App 里把麦克风设为 **CABLE Output**。
@@ -192,17 +194,24 @@ pactl load-module module-null-sink sink_name=xiaomi_remote \
 
 ### Linux 安装包
 
-`release/` 里只有一个 **2.0.0 历史 `.deb`**，不是 V2.5.6：
+CI 已构建 V2.5.6 `.deb`（amd64，未真机验证）：
 
-```text
-release/Xiaomi Remote_2.0.0_arm64.deb   (2.0.0 历史包，3.5 MB)
+[Xiaomi.Remote_2.5.6_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.6/Xiaomi.Remote_2.5.6_amd64.deb)
+
+```bash
+sudo apt-get install -y libwebkit2gtk-4.1-0 libasound2 libudev1
+sudo dpkg -i Xiaomi.Remote_2.5.6_amd64.deb
+sudo apt-get install -f
 ```
 
-V2.5.6 **没有**经过验证的 Linux `.deb`，也没有在本轮构建。需要时请从源码构建 `pnpm tauri build`，并在目标发行版实机验证。
+`release/` 里的 2.0.0 `.deb` 仅为历史包，不要用于本版本。
 
 ## 发布
 
-本次 V2.5.6 只准备了 **macOS arm64 DMG**，并已在本机安装验证。仓库里虽然有 `.github/workflows/v2-release.yml`，但本轮**没有运行 Windows/Linux 的发布构建**，因此不要把 CI 配置理解为已验证发布。
+V2.5.6 已通过 `.github/workflows/v2-release.yml` 在 macOS / Windows / Ubuntu runner 上构建并附加到 [GitHub Release v2.5.6](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.6)。
+
+- macOS：已实机验证
+- Windows / Linux：CI 单元测试 + 安装包构建通过，**未做真机 BLE/音频/按键验证**
 
 版本变更见 [CHANGELOG.md](CHANGELOG.md)，发布说明见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 
@@ -216,11 +225,11 @@ V2.5.6 **没有**经过验证的 Linux `.deb`，也没有在本轮构建。需�
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 目标键录制 + 持续测试 + 音频处理 | **24/24 测试通过**；V2.5.6 已安装运行，快速设置 3/3，`hidutil` + EventTap 生效 |
-| Windows (x86_64) | 未在 Windows 真机运行；本轮未构建 V2.5.6 | **未测试** |
-| Linux (arm64/x86_64) | 未在 Linux 真机运行；本轮未构建 V2.5.6 | **未测试** |
+| macOS (arm64) | 本地 `cargo test --lib` + `pnpm tauri build` + 实机语音/录音/按键 | **24/24 测试通过**；V2.5.6 已安装运行，快速设置 3/3 |
+| Windows (x86_64) | GitHub Actions `windows-latest`：`cargo test --lib` + NSIS build | **23/23 测试通过**，安装包构建成功；**未真机验证** |
+| Linux (amd64) | GitHub Actions `ubuntu-22.04`：`cargo test --lib` + `.deb` build | **25/25 测试通过**，`.deb` 构建成功；**未真机验证** |
 
-> 历史版本曾在容器里做过 Linux/Windows 的编译检查，但那些检查**不能替代 V2.5.6 的真机验证**，也不在本轮发布结论内。
+> CI 只证明当前代码能在对应系统编译、通过单元测试并产出安装包；BLE、音频设备、按键钩子仍需真机验证。
 
 ### macOS 本地自签名证书（可选）
 
@@ -235,7 +244,7 @@ V2.5.6 **没有**经过验证的 Linux `.deb`，也没有在本轮构建。需�
 
 ## 已知限制
 
-- **Windows/Linux 尚未在真机验证**，本轮发布只覆盖 macOS。BLE、音频设备、按键后端和安装包都需要在对应平台重新验证。
+- **Windows/Linux 只完成了 CI 构建和单元测试，尚未在真机验证**。BLE、音频设备、按键后端都需要在对应平台重新验证。
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
 - macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的语音键。V2.5.6 已重新授权并显示 `macOS event tap`；重装/换签名后需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
 - 按键录制复用 Accessibility 的 EventTap，不需要额外的 Input Monitoring 权限；目前录制入口只在 macOS 提供，Linux/Windows 使用默认绑定或配置文件。

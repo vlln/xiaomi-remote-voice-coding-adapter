@@ -7,20 +7,27 @@
 | 平台 | 状态 | 说明 |
 |---|---|---|
 | macOS arm64 | ✅ 已验证 | Apple Silicon / macOS 27，真实遥控器、BlackHole 2ch、语音会话、按键映射、持续测试、音频处理 |
-| Windows x86_64 | ⚠️ 未测试 | 本轮没有在 Windows 真机验证 BLE / 音频 / 按键，也没有构建发布包 |
-| Linux | ⚠️ 未测试 | 本轮没有在 Linux 真机验证 BLE / 音频 / 按键，也没有构建发布包 |
+| Windows x86_64 | ⚠️ 仅 CI 验证 | windows-latest 上 23/23 单元测试通过并构建 NSIS；**未在 Windows 真机验证** BLE / 音频 / 按键 |
+| Linux amd64 | ⚠️ 仅 CI 验证 | ubuntu-22.04 上 25/25 单元测试通过并构建 `.deb`；**未在 Linux 真机验证** BLE / 音频 / 按键 |
 
-> Windows/Linux 的代码路径存在，但**不是本次发布验证过的能力**。发布说明中的“可用”仅指 macOS。
+> Windows/Linux 的“通过”只代表 CI 编译、单元测试和打包通过，**不代表真机可用**。三平台中只有 macOS 完成了实机验证。
 
-## macOS 产物
+## 产物
+
+Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.6
 
 ```text
-Xiaomi Remote_2.5.6_aarch64.dmg
-SHA-256 0d365322332bbc0098c0f8e9250d0152a04be9d5d0dc4235b4f069372b50f10e
+Xiaomi.Remote_2.5.6_aarch64.dmg
+SHA-256 1707760552744e043c04f14d4471793076856f016d3058d9dbeb8b7023c082f0
+
+Xiaomi.Remote_2.5.6_x64-setup.exe
+SHA-256 8dd7cbff39bb67bdc6ae660ecfa6028e1ea8d8dcb18c0e8616c152290d4733b0
+
+Xiaomi.Remote_2.5.6_amd64.deb
+SHA-256 b827d7d23e667a1f07bb34fa502e04ea93ac8367abb07ecd0da307abb161755e
 ```
 
-- 构建方式：`pnpm tauri build`
-- 签名：ad-hoc（`-`），**未做 Apple 公证**
+- macOS 签名：ad-hoc（`-`），**未做 Apple 公证**
 - 首次打开可能需要在「系统设置 → 隐私与安全性」允许
 - 重装/换构建后，需在「设备控制与数据访问」重新授权键盘控制
 
@@ -44,9 +51,23 @@ SHA-256 0d365322332bbc0098c0f8e9250d0152a04be9d5d0dc4235b4f069372b50f10e
    - 遥控器连接
 3. 在会议 App 里把麦克风设为 **BlackHole 2ch**
 
+### Windows
+
+运行 `Xiaomi.Remote_2.5.6_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
+
+### Linux
+
+```bash
+sudo apt-get install -y libwebkit2gtk-4.1-0 libasound2 libudev1
+sudo dpkg -i Xiaomi.Remote_2.5.6_amd64.deb
+sudo apt-get install -f
+```
+
+需要 PipeWire/PulseAudio null sink（未真机验证）。
+
 ## 已知限制
 
-- Windows/Linux 未做真机验证；需要时请从源码构建并自行测试。
+- Windows/Linux 已完成 CI 单元测试和安装包构建，但**未做真机验证**；BLE/音频/按键需要自行测试。
 - macOS 的 ad-hoc 签名在重装后可能丢失 TCC 授权，需要重新允许。
 - 测试模式会拦截所有真实按键（鼠标停止不受影响）。
 - 只缓存最近一次录音；概览不再提供回放入口，音频页可播放。
