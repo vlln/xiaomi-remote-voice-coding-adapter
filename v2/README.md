@@ -1,6 +1,6 @@
-# Xiaomi Remote V2.1
+# Xiaomi Remote V2.2
 
-跨平台的「小米蓝牙语音遥控器 2 Pro」桌面端：BLE ATVV 语音桥接 + 虚拟麦克风 + 设备级按键映射 + 菜单栏 UI。
+跨平台的「小米遥控器 2」桌面端：BLE ATVV 语音桥接 + 虚拟麦克风 + 设备级按键映射 + 菜单栏 UI。
 
 V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库根目录作为参考实现。
 
@@ -18,7 +18,7 @@ pnpm install
 
 首次打开按「概览 → 快速设置」完成三步：安装/选择虚拟麦克风、授权键盘控制、连接遥控器。然后到「按键映射」点击某个按键，按下遥控器上的对应键即可重新绑定。
 
-Linux 使用 `release/` 下的 `.deb`（2.1.0 由 CI/tag 构建），Windows 使用 CI 产出的 NSIS 安装包。
+Linux 使用 `release/` 下的 `.deb`（2.2.0 由 CI/tag 构建），Windows 使用 CI 产出的 NSIS 安装包。
 
 ## 功能
 
@@ -32,7 +32,9 @@ Linux 使用 `release/` 下的 `.deb`（2.1.0 由 CI/tag 构建），Windows 使
 
 ![按键录制](docs/capture.png)
 
-## 平台支持（V2.1.0）
+![按键映射与遥控器指示](docs/keymap.png)
+
+## 平台支持（V2.2.0）
 
 | 能力 | macOS | Windows | Linux |
 |---|---|---|---|
@@ -43,7 +45,7 @@ Linux 使用 `release/` 下的 `.deb`（2.1.0 由 CI/tag 构建），Windows 使
 | 开机自启 | ✅ 已生成并校验 LaunchAgent | ✅（plugin） | ✅（plugin） |
 | 录音回放 | ✅ | ✅ | ✅ |
 
-> V2.1.0 首先在 macOS 上跑通；Windows/Linux 的 BLE/音频层使用跨平台 crate（`btleplug` + `cpal`），但还需要在对应系统上做实机验证与按键后端。
+> V2.2.0 首先在 macOS 上跑通；Windows/Linux 的 BLE/音频层使用跨平台 crate（`btleplug` + `cpal`），但还需要在对应系统上做实机验证与按键后端。
 
 ## 架构
 
@@ -175,7 +177,7 @@ sudo dpkg -i "Xiaomi Remote_2.0.0_arm64.deb"
 sudo apt-get install -f   # 补齐依赖
 ```
 
-V2.1.0 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；本地 arm64 历史包仍保留在 `release/`。
+V2.2.0 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；本地 arm64 历史包仍保留在 `release/`。
 
 ## 发布
 
@@ -191,8 +193,8 @@ V2.1.0 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；�
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 按键录制 + 自启开关 | 21/21 测试通过；V2.1.0 已安装运行，快速设置 3/3，`macOS event tap`；按键录制已用合成 F6 实测并恢复默认 |
-| Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + Windows 交叉检查 | **23/23** 测试通过；Windows 默认/optional Interception 构建通过 `cargo check` |
+| macOS (arm64) | `cargo test --lib` + `pnpm tauri build` + 实机语音/录音 + 按键录制 + 自启开关 | 22/22 测试通过；V2.2.0 已安装运行，快速设置 3/3，`macOS event tap`；按键录制已用合成 F6 实测并恢复默认 |
+| Linux (Debian bookworm arm64, Rust 1.90, GTK/WebKit 依赖) | 容器内 `cargo test --lib` + Windows 交叉检查 | **23/23** 测试通过（新增 normalize 测试由 CI 覆盖）；Windows 默认/optional Interception 构建通过 `cargo check` |
 | Windows (x86_64-pc-windows-gnu, mingw-w64) | 交叉 `cargo check` + `cargo test --lib --no-run` | 编译并链接成功 |
 
 > Windows/Linux 目前只做了编译与链接验证，尚未在真实设备上验证 BLE/音频链路；macOS 已实机验证。
@@ -211,7 +213,7 @@ V2.1.0 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；�
 ## 已知限制
 
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
-- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的语音键。V2.1.0 已重新授权并显示 `macOS event tap`；重装/换签名后需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
+- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的语音键。V2.2.0 已重新授权并显示 `macOS event tap`；重装/换签名后需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
 - 按键录制复用 Accessibility 的 EventTap，不需要额外的 Input Monitoring 权限；目前录制入口只在 macOS 提供，Linux/Windows 使用默认绑定或配置文件。
 - Windows 默认只实现语音键（push-to-talk）的 `SendInput` 注入。Home/TV/返回可通过可选的 `interception` feature 启用，但需要安装 Interception 内核驱动，并把 `interception.dll` 放到 exe 同目录：
 
@@ -234,5 +236,5 @@ V2.1.0 的 `.deb` / Windows NSIS / macOS DMG 由 tag 发布 workflow 构建；�
   RULE
   sudo udevadm control --reload-rules && sudo udevadm trigger
   ```
-- 只保留最近一次录音，文件位于系统 App Data 目录下的 `last_session.wav`。
+- 只保留最近一次录音，缓存为系统 App Data 目录下的 `last_session.wav`；界面只提供回放按钮，不展示路径。
 - 按键录制只支持标准键盘 HID usage；遥控器上极特殊的厂商按键可能无法识别，此时会保留原绑定。

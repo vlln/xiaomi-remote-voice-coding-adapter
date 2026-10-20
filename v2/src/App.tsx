@@ -6,6 +6,7 @@ import "./App.css";
 type BackTarget = "none" | "backspace" | "escape";
 type KeyAction = "voice" | "home" | "tv" | "back";
 type Page = "overview" | "keys" | "audio" | "advanced";
+type Guide = "mic" | "permission" | "remote";
 
 type KeySource = { usage: number; name?: string };
 type KeyMapSettings = {
@@ -267,6 +268,53 @@ function sourceLabel(source: KeySource) {
   );
 }
 
+const HOTSPOTS: {
+  action: KeyAction;
+  label: string;
+  top: string;
+  left: string;
+}[] = [
+  { action: "voice", label: "语音键", top: "10.9%", left: "67.7%" },
+  { action: "back", label: "返回键", top: "40.1%", left: "35.5%" },
+  { action: "home", label: "Home 键", top: "48.4%", left: "35.5%" },
+  { action: "tv", label: "TV 键", top: "56.3%", left: "67.7%" },
+];
+
+function RemoteVisual({
+  capturing,
+  disabled,
+  onPick,
+}: {
+  capturing: KeyAction | null;
+  disabled: boolean;
+  onPick: (action: KeyAction) => void;
+}) {
+  return (
+    <div className="remote-panel">
+      <div className="remote-visual">
+        <img src="/remote-2.jpg" alt="小米遥控器 2" draggable={false} />
+        {HOTSPOTS.map((spot) => (
+          <button
+            key={spot.action}
+            className={`hotspot ${
+              capturing === spot.action ? "active" : ""
+            }`}
+            style={{ top: spot.top, left: spot.left }}
+            disabled={disabled}
+            title={`${spot.label}：点击录制`}
+            onClick={() => onPick(spot.action)}
+          >
+            <span className="hotspot-label">{spot.label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="remote-caption">
+        点击遥控器上的按键图标开始录制
+      </p>
+    </div>
+  );
+}
+
 function App() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [draft, setDraft] = useState<Settings | null>(null);
@@ -274,6 +322,7 @@ function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState<Page>("overview");
   const [capturing, setCapturing] = useState<KeyAction | null>(null);
+  const [guide, setGuide] = useState<Guide | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
 
@@ -365,6 +414,16 @@ function App() {
   }
 
   const { status } = snap;
+  const platform = snap.platform;
+  const voiceTarget = platform === "macos" ? "右 Option" : "右 Alt";
+  const metaFor = (action: KeyAction) => ({
+    ...ACTION_META[action],
+    desc:
+      action === "voice"
+        ? `按住说话，发送${voiceTarget}`
+        : ACTION_META[action].desc,
+    target: action === "voice" ? voiceTarget : ACTION_META[action].target,
+  });
   const running = status.running;
   const recording = status.session.mic_open;
   const tone = recording
@@ -401,31 +460,55 @@ function App() {
   );
   const connected = Boolean(status.device) && status.state === "connected";
 
+  const micUrl =
+    platform === "windows"
+      ? "https://vb-audio.com/Cable/"
+      : "https://existential.audio/blackhole/";
+  const micActionLabel =
+    platform === "windows"
+      ? "安装 VB-CABLE"
+      : platform === "linux"
+        ? "查看配置"
+        : "安装 BlackHole";
+
   const steps = [
     {
       key: "mic",
       title: "虚拟麦克风",
       desc: hintPresent
         ? `${snap.default_device} 已就绪`
-        : "安装 BlackHole / VB-CABLE 后选择它作为输出",
+        : platform === "linux"
+          ? "创建 PipeWire null sink，并选择它作为输出"
+          : `安装 ${platform === "windows" ? "VB-CABLE" : "BlackHole"} 后选择它作为输出`,
       ok: hintPresent,
       action: hintPresent
         ? null
         : {
-            label: "安装 BlackHole",
-            run: () => openUrl("https://existential.audio/blackhole/"),
+            label: micActionLabel,
+            run:
+              platform === "linux"
+                ? () => setGuide("mic")
+                : () => openUrl(micUrl),
           },
+      guide: "mic" as Guide,
     },
     {
       key: "shield",
-      title: "键盘控制权限",
-      desc: snap.accessibility_trusted
-        ? "已授权，可发送干净的右 Option"
-        : "未授权时语音键会回退到 F5+Option",
-      ok: snap.accessibility_trusted,
-      action: snap.accessibility_trusted
-        ? null
-        : { label: "打开设置", run: openAccessibility },
+      title: platform === "macos" ? "键盘控制权限" : "输入权限",
+      desc:
+        platform === "macos"
+          ? snap.accessibility_trusted
+            ? "已授权，可发送干净的按键事件"
+            : "未授权时语音键会回退到 F5+Option"
+          : platform === "linux"
+            ? "需要 /dev/input 和 /dev/uinput 权限"
+            : "Windows 无需额外权限",
+      ok: platform === "macos" ? snap.accessibility_trusted : true,
+      action:
+        platform === "macos" && !snap.accessibility_trusted
+          ? { label: "打开设置", run: openAccessibility }
+          : null,
+      guide: "permission" as Guide,
     },
     {
       key: "bluetooth",
@@ -433,6 +516,7 @@ function App() {
       desc: connected ? (status.device ?? "已连接") : "等待 BLE 连接",
       ok: connected,
       action: connected ? null : { label: "启动桥接", run: toggleEngine },
+      guide: "remote" as Guide,
     },
   ];
   const readyCount = steps.filter((step) => step.ok).length;
@@ -583,6 +667,168 @@ function App() {
     pageRef.current?.scrollTo({ top: 0 });
   }
 
+  const platformName =
+    platform === "macos" ? "macOS" : platform === "windows" ? "Windows" : "Linux";
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast("已复制");
+    } catch {
+      setToast("复制失败，请手动选择文本");
+    }
+  }
+
+  function guideContent() {
+    if (guide === "mic") {
+      if (platform === "linux") {
+        const command =
+          'pactl load-module module-null-sink sink_name=xiaomi_remote sink_properties=device.description="Xiaomi Remote"';
+        return (
+          <>
+            <p>在终端执行下面的命令，创建一个名为 Xiaomi Remote 的虚拟输出：</p>
+            <pre className="code">{command}</pre>
+            <p>然后在「音频」页把输出设备选为 Xiaomi Remote，在目标 App 里选择它的 Monitor。</p>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => copyText(command)}>
+                复制命令
+              </button>
+              <button className="btn btn-primary" onClick={() => { setGuide(null); go("audio"); }}>
+                前往音频
+              </button>
+            </div>
+          </>
+        );
+      }
+      const url =
+        platform === "windows"
+          ? "https://vb-audio.com/Cable/"
+          : "https://existential.audio/blackhole/";
+      return (
+        <>
+          <p>
+            {platform === "windows"
+              ? "安装 VB-CABLE，然后在音频页把输出设备选为 CABLE Input。"
+              : "安装 BlackHole 2ch，然后在音频页把输出设备选为 BlackHole 2ch。"}
+          </p>
+          <p>
+            {platform === "windows"
+              ? "目标 App 的麦克风设为 CABLE Output。"
+              : "目标 App 的麦克风设为 BlackHole 2ch。"}
+          </p>
+          {platform === "macos" && (
+            <pre className="code">brew install blackhole-2ch</pre>
+          )}
+          <div className="modal-actions">
+            {platform === "macos" && (
+              <button
+                className="btn btn-ghost"
+                onClick={() => copyText("brew install blackhole-2ch")}
+              >
+                复制命令
+              </button>
+            )}
+            <button className="btn btn-ghost" onClick={() => openUrl(url)}>
+              打开下载页
+            </button>
+            <button className="btn btn-primary" onClick={() => { setGuide(null); go("audio"); }}>
+              前往音频
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    if (guide === "permission") {
+      if (platform === "macos") {
+        return (
+          <>
+            <p>
+              打开「系统设置 → 隐私与安全性 → Device Control and Data Access」，
+              解锁后把 Xiaomi Remote 打开。授权后 App 会从 hidutil 回退切换到
+              macOS event tap。
+            </p>
+            <p>
+              如果刚重装过 App，开关可能还指向旧签名；先关闭再打开一次，
+              或者用 tccutil 清理后重新授权。
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => { openAccessibility(); setGuide(null); }}>
+                打开系统设置
+              </button>
+            </div>
+          </>
+        );
+      }
+      if (platform === "linux") {
+        const command = `sudo usermod -aG input "$USER"
+sudo tee /etc/udev/rules.d/99-xiaomi-remote.rules <<'RULE'
+KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+RULE
+sudo udevadm control --reload-rules && sudo udevadm trigger`;
+        return (
+          <>
+            <p>
+              Linux 的按键映射需要读取 /dev/input/event*，并写入 /dev/uinput。
+              执行下面的命令后重新登录：
+            </p>
+            <pre className="code">{command}</pre>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => copyText(command)}>
+                复制命令
+              </button>
+            </div>
+          </>
+        );
+      }
+      return (
+        <>
+          <p>Windows 的语音键通过 SendInput 注入，不需要额外权限。</p>
+          <p>
+            如果还需要 Home / TV / 返回键的设备级映射，需要安装 Interception
+            驱动并使用 optional feature 构建。
+          </p>
+          <div className="modal-actions">
+            <button className="btn btn-primary" onClick={() => setGuide(null)}>
+              知道了
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    const pairPath =
+      platform === "macos"
+        ? "系统设置 → 蓝牙"
+        : platform === "windows"
+          ? "设置 → 蓝牙和其他设备"
+          : "bluetoothctl";
+    return (
+      <>
+        <p>
+          确保小米遥控器 2 已经在 {platformName} 的蓝牙设置中配对（{pairPath}）。
+          如果遥控器不在列表里，先让遥控器进入配对模式，再重新搜索。
+        </p>
+        <p>配对完成后回到 App，启动桥接；App 会优先复用系统已连接的遥控器。</p>
+        <div className="modal-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => { setGuide(null); toggleEngine(); }}
+          >
+            启动桥接
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  const guideTitle =
+    guide === "mic"
+      ? "虚拟麦克风设置"
+      : guide === "permission"
+        ? "权限设置"
+        : "连接小米遥控器 2";
+
   const pageMeta: Record<Page, { title: string; subtitle: string }> = {
     overview: { title: "概览", subtitle: "遥控器、麦克风和权限状态" },
     keys: {
@@ -602,7 +848,7 @@ function App() {
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>V2.1 · 菜单栏应用</small>
+            <small>小米遥控器 2 · V2.2</small>
           </span>
         </div>
 
@@ -643,7 +889,7 @@ function App() {
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.1.0</div>
+          <div className="sidebar-version">{snap.platform} · 2.2.0</div>
         </div>
       </aside>
 
@@ -684,7 +930,7 @@ function App() {
                 </div>
                 <div className="hero-info">
                   <span className="eyebrow">遥控器</span>
-                  <h2>{status.device ?? "等待连接"}</h2>
+                  <h2>{status.device ?? "小米遥控器 2"}</h2>
                   <p>
                     {recording
                       ? "正在接收麦克风音频"
@@ -692,6 +938,15 @@ function App() {
                         ? "BLE 语音桥接运行中"
                         : "桥接已停止，点击右上角启动"}
                   </p>
+                  {snap.last_recording && (
+                    <button
+                      className="btn btn-small hero-play"
+                      onClick={openRecording}
+                    >
+                      <Icon name="play" size={13} />
+                      回放上次录音
+                    </button>
+                  )}
                 </div>
                 <div className="hero-metrics">
                   <div>
@@ -731,11 +986,22 @@ function App() {
                         <strong>{step.title}</strong>
                         <span>{step.desc}</span>
                       </div>
-                      {step.action && (
-                        <button className="btn btn-small" onClick={step.action.run}>
-                          {step.action.label}
+                      <div className="step-actions">
+                        {step.action && (
+                          <button
+                            className="btn btn-small"
+                            onClick={step.action.run}
+                          >
+                            {step.action.label}
+                          </button>
+                        )}
+                        <button
+                          className="btn btn-text"
+                          onClick={() => setGuide(step.guide)}
+                        >
+                          指引
                         </button>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -788,7 +1054,9 @@ function App() {
                 <div className="section-head">
                   <div>
                     <h3>遥控器按键</h3>
-                    <p>点击右侧按键，然后按下遥控器上的对应键；Esc 取消</p>
+                    <p>
+                      点击按键或遥控器图标，然后按下实体按键；Esc 取消
+                    </p>
                   </div>
                   <button
                     className="btn btn-small"
@@ -799,107 +1067,124 @@ function App() {
                   </button>
                 </div>
 
-                <div className="key-list">
-                  {ACTIONS.map((action) => {
-                    const meta = ACTION_META[action];
-                    const source = draft.key_map[`${action}_key`];
-                    const enabled =
-                      action === "voice"
-                        ? draft.key_map.voice_to_right_option
-                        : action === "home"
-                          ? draft.key_map.home_to_escape
-                          : action === "tv"
-                            ? draft.key_map.tv_to_backspace
-                            : draft.key_map.back_target !== "none";
-                    const disabled =
-                      !snap.key_mapping_full && action !== "voice";
-                    return (
-                      <div
-                        className={`key-row ${disabled ? "is-disabled" : ""}`}
-                        key={action}
-                      >
-                        <div className="key-main">
-                          <span className="key-icon">
-                            <Icon name={meta.icon} size={17} />
-                          </span>
-                          <div>
-                            <strong>{meta.label}</strong>
-                            <span>{meta.desc}</span>
-                          </div>
-                        </div>
-                        <div className="key-controls">
-                          {action === "back" ? (
-                            <select
-                              className="select compact"
-                              value={draft.key_map.back_target}
-                              disabled={disabled || busy}
-                              onChange={(event) =>
-                                saveKeys(
-                                  {
-                                    back_target: event.target
-                                      .value as BackTarget,
-                                  },
-                                  "返回键目标已更新",
-                                )
-                              }
-                            >
-                              <option value="backspace">Backspace</option>
-                              <option value="escape">Escape</option>
-                              <option value="none">不映射</option>
-                            </select>
-                          ) : (
-                            <span className="target">{meta.target}</span>
-                          )}
-                          <button
-                            className={`shortcut ${
-                              capturing === action ? "capturing" : ""
-                            }`}
-                            disabled={disabled || busy || !snap.key_capture_supported}
-                            onClick={() => capture(action)}
-                            title="点击重新录制"
-                          >
-                            <Icon name="keyboard" size={13} />
-                            {capturing === action
-                              ? "按下按键…"
-                              : sourceLabel(source)}
-                          </button>
-                          <Switch
-                            checked={enabled}
-                            disabled={disabled || busy}
-                            label={`${meta.label}启用`}
-                            onChange={(value) => {
-                              if (action === "back") {
-                                saveKeys({
-                                  back_target: value ? "backspace" : "none",
-                                });
-                              } else {
-                                const field =
-                                  action === "voice"
-                                    ? "voice_to_right_option"
-                                    : action === "home"
-                                      ? "home_to_escape"
-                                      : "tv_to_backspace";
-                                saveKeys({ [field]: value });
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <div className="keys-layout">
+                  <RemoteVisual
+                    capturing={capturing}
+                    disabled={!snap.key_capture_supported || busy}
+                    onPick={capture}
+                  />
 
-                {!snap.key_mapping_full && (
-                  <p className="inline-note">
-                    Windows 默认只支持语音键；Home / TV / 返回需要
-                    Interception 驱动和可选构建。
-                  </p>
-                )}
-                <p className="inline-note">
-                  {snap.key_capture_supported
-                    ? "录制复用 macOS「键盘控制权限」。如果点击后无法录制，请在系统设置 → 隐私与安全性 → Device Control and Data Access 中重新授权 Xiaomi Remote。"
-                    : "当前平台暂不支持录制按键；可以继续使用默认绑定。"}
-                </p>
+                  <div className="keys-main">
+                    <div className="key-list">
+                      {ACTIONS.map((action) => {
+                        const meta = metaFor(action);
+                        const source = draft.key_map[`${action}_key`];
+                        const enabled =
+                          action === "voice"
+                            ? draft.key_map.voice_to_right_option
+                            : action === "home"
+                              ? draft.key_map.home_to_escape
+                              : action === "tv"
+                                ? draft.key_map.tv_to_backspace
+                                : draft.key_map.back_target !== "none";
+                        const disabled =
+                          !snap.key_mapping_full && action !== "voice";
+                        return (
+                          <div
+                            className={`key-row ${disabled ? "is-disabled" : ""}`}
+                            key={action}
+                          >
+                            <div className="key-main">
+                              <span className="key-icon">
+                                <Icon name={meta.icon} size={17} />
+                              </span>
+                              <div>
+                                <strong>{meta.label}</strong>
+                                <span>{meta.desc}</span>
+                              </div>
+                            </div>
+                            <div className="key-flow">
+                              <button
+                                className={`shortcut ${
+                                  capturing === action ? "capturing" : ""
+                                }`}
+                                disabled={
+                                  disabled ||
+                                  busy ||
+                                  !snap.key_capture_supported
+                                }
+                                onClick={() => capture(action)}
+                                title="点击重新录制"
+                              >
+                                <Icon name="keyboard" size={13} />
+                                {capturing === action
+                                  ? "按下按键…"
+                                  : sourceLabel(source)}
+                              </button>
+                              <span className="arrow">→</span>
+                              {action === "back" ? (
+                                <select
+                                  className="select compact"
+                                  value={draft.key_map.back_target}
+                                  disabled={disabled || busy}
+                                  onChange={(event) =>
+                                    saveKeys(
+                                      {
+                                        back_target: event.target
+                                          .value as BackTarget,
+                                      },
+                                      "返回键目标已更新",
+                                    )
+                                  }
+                                >
+                                  <option value="backspace">Backspace</option>
+                                  <option value="escape">Escape</option>
+                                  <option value="none">不映射</option>
+                                </select>
+                              ) : (
+                                <span className="target">{meta.target}</span>
+                              )}
+                              <Switch
+                                checked={enabled}
+                                disabled={disabled || busy}
+                                label={`${meta.label}启用`}
+                                onChange={(value) => {
+                                  if (action === "back") {
+                                    saveKeys({
+                                      back_target: value
+                                        ? "backspace"
+                                        : "none",
+                                    });
+                                  } else {
+                                    const field =
+                                      action === "voice"
+                                        ? "voice_to_right_option"
+                                        : action === "home"
+                                          ? "home_to_escape"
+                                          : "tv_to_backspace";
+                                    saveKeys({ [field]: value });
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {!snap.key_mapping_full && (
+                      <p className="inline-note">
+                        Windows 默认只支持语音键；Home / TV / 返回需要
+                        Interception 驱动和可选构建。
+                      </p>
+                    )}
+                    <p className="inline-note">
+                      {snap.key_capture_supported
+                        ? "录制复用 macOS「键盘控制权限」。如果点击后无法录制，请在系统设置 → 隐私与安全性 → Device Control and Data Access 中重新授权 Xiaomi Remote。"
+                        : "当前平台暂不支持录制按键；可以继续使用默认绑定。"}
+                    </p>
+                  </div>
+                </div>
               </section>
             </div>
           )}
@@ -912,9 +1197,8 @@ function App() {
                     <h3>虚拟麦克风</h3>
                     <p>语音桥接会把 16 kHz 音频重采样到 48 kHz 输出</p>
                   </div>
-                  <button className="btn btn-small" onClick={refresh}>
-                    <Icon name="refresh" size={14} />
-                    刷新
+                  <button className="btn btn-small" onClick={() => setGuide("mic")}>
+                    安装指引
                   </button>
                 </div>
 
@@ -948,45 +1232,40 @@ function App() {
                 </div>
 
                 <p className="inline-note">
-                  macOS 推荐 BlackHole 2ch，Windows 推荐 VB-CABLE，Linux 使用
-                  PipeWire null sink。安装说明见 README。
+                  设备列表会自动刷新，无需手动刷新。
+                  {platform === "macos"
+                    ? " macOS 推荐 BlackHole 2ch。"
+                    : platform === "windows"
+                      ? " Windows 推荐 VB-CABLE。"
+                      : " Linux 使用 PipeWire null sink。"}
                 </p>
               </section>
 
               <section className="section">
                 <div className="section-head">
                   <div>
-                    <h3>录音</h3>
-                    <p>只保留最近一次会话，便于回放验证</p>
+                    <h3>回放</h3>
+                    <p>只缓存最近一次录音，不需要管理文件</p>
                   </div>
-                </div>
-                <div className="row">
-                  <div className="row-main">
-                    <Icon name="record" size={17} />
-                    <div>
-                      <strong>保存每次录音</strong>
-                      <span>写入 last_session.wav</span>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={draft.record_last_session}
-                    label="保存每次录音"
-                    onChange={(value) => patch({ record_last_session: value })}
-                  />
                 </div>
                 <div className="row">
                   <div className="row-main">
                     <Icon name="play" size={17} />
                     <div>
                       <strong>上次录音</strong>
-                      <span>{snap.last_recording ?? "还没有录音"}</span>
+                      <span>
+                        {snap.last_recording
+                          ? "已缓存，可以直接播放"
+                          : "按一次语音键后生成"}
+                      </span>
                     </div>
                   </div>
                   <button
-                    className="btn btn-small"
+                    className="btn btn-primary"
                     onClick={openRecording}
                     disabled={!snap.last_recording}
                   >
+                    <Icon name="play" size={14} />
                     播放
                   </button>
                 </div>
@@ -1057,7 +1336,7 @@ function App() {
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.1.0</strong>
+                    <strong>2.2.0</strong>
                   </div>
                   <div>
                     <span>平台</span>
@@ -1109,6 +1388,24 @@ function App() {
             <button className="btn btn-ghost" onClick={cancelCapture}>
               取消
             </button>
+          </div>
+        </div>
+      )}
+
+      {guide && (
+        <div className="modal-overlay" onMouseDown={() => setGuide(null)}>
+          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <h2>{guideTitle}</h2>
+              <button
+                className="icon-btn"
+                onClick={() => setGuide(null)}
+                aria-label="关闭"
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <div className="modal-body">{guideContent()}</div>
           </div>
         </div>
       )}

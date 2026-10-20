@@ -46,6 +46,9 @@ impl Settings {
         if self.audio_device.trim().is_empty() {
             self.audio_device = audio::default_device_hint().to_string();
         }
+        // The UI only exposes the last recording; always keep that one cache
+        // file so the replay button works.
+        self.record_last_session = true;
         self
     }
 }
@@ -467,6 +470,15 @@ mod tests {
         assert_eq!(parsed.audio_device, settings.audio_device);
         assert!(parsed.record_last_session);
         assert!(parsed.key_map.voice_to_right_option);
+    }
+
+    #[test]
+    fn normalize_keeps_recording_available() {
+        let settings = Settings {
+            record_last_session: false,
+            ..Settings::default()
+        };
+        assert!(settings.normalize().record_last_session);
     }
 
     #[test]
