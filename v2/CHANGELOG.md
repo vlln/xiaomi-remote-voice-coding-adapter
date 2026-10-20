@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.6
+
+### Changed
+
+- Remove the overview "回放上次录音" button
+
 ## 2.5.5
 
 ### Changed
