@@ -1,8 +1,10 @@
-# xiaomi-remote
+# Xiaomi Remote V1（归档）
 
-> **V2（Tauri 跨平台 App）** 位于 [`v2/`](v2/README.md)：菜单栏 App + Rust BLE/音频链路 + 设备级按键映射，支持 macOS / Windows / Linux。以下为 V1（Python + Karabiner）文档。
+> **V1 已归档，仅作历史参考。** 新版本是 Tauri 跨平台 App：[`../v2/`](../v2/README.md)。
+>
+> 以下命令都在 `v1/` 目录执行。
 
-小米蓝牙语音遥控器 2 Pro (XMRM-XX) 的 macOS 工具集。
+小米蓝牙语音遥控器 2 Pro (XMRM-XX) 的 V1 macOS 工具集（Python + Karabiner）。
 
 ## 功能
 
@@ -13,7 +15,7 @@
 
 ```bash
 brew install blackhole-2ch     # 虚拟音频驱动
-python3 -m pip install -e .    # Python 依赖
+python3 -m pip install -e .    # Python 依赖（在 v1/ 下）
 ```
 
 ## 使用
@@ -47,6 +49,10 @@ python3 -u scripts/voice_capture.py
 python3 -u scripts/voice_capture.py --debug  # 同时保存 voice_raw.wav + voice_processed.wav
 python3 scripts/test_blackhole.py             # 测试 BlackHole 音频
 ```
+
+## License
+
+GPL-3.0-only，见 [`../LICENSE`](../LICENSE)。
 
 ## 协议与参考
 

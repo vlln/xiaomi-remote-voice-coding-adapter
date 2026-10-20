@@ -7,6 +7,7 @@ name = "xiaomi-remote"
 version = "0.1.0"
 description = "小米蓝牙语音遥控器 2 Pro — 按键映射 + 语音桥接"
 requires-python = ">=3.9"
+license = { text = "GPL-3.0-only" }
 dependencies = [
     "sounddevice>=0.4",
     "numpy>=1.20",

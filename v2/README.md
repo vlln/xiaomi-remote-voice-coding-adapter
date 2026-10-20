@@ -2,7 +2,7 @@
 
 跨平台的「小米遥控器 2」桌面端：BLE ATVV 语音桥接 + 虚拟麦克风 + 设备级按键映射 + 菜单栏 UI。
 
-V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本仍保留在仓库根目录作为参考实现。
+V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本已归档在 [`../v1/`](../v1/README.md)。
 
 > **发布状态（V2.5.6）**
 >
@@ -204,7 +204,7 @@ sudo dpkg -i Xiaomi.Remote_2.5.6_amd64.deb
 sudo apt-get install -f
 ```
 
-`release/` 里的 2.0.0 `.deb` 仅为历史包，不要用于本版本。
+
 
 ## 发布
 
@@ -217,9 +217,9 @@ V2.5.6 已通过 `.github/workflows/v2-release.yml` 在 macOS / Windows / Ubuntu
 
 ## V1 与 V2 的关系
 
-- V1：`scripts/voice_capture.py` + Karabiner + 手动终端启动
+- V1：`v1/scripts/voice_capture.py` + Karabiner + 手动终端启动（归档）
 - V2：`v2/` 下的 Tauri App，接管 BLE、音频、按键映射、托盘和自启
-- V1 的协议/音频实现是 V2 Rust 移植的参考；`tests/test_voice_capture.py` 仍可用于对照 V1 行为，当前 **14/14 通过**，CI 的 `v1-tests` workflow 会持续验证
+- V1 的协议/音频实现是 V2 Rust 移植的参考；`v1/tests/test_voice_capture.py` 仍可用于对照 V1 行为，当前 **14/14 通过**，CI 的 `v1-tests` workflow 会持续验证
 
 ## 平台验证
 

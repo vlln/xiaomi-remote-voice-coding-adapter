@@ -3,19 +3,18 @@ name: v1-tests
 on:
   push:
     paths:
-      - "scripts/**"
-      - "tests/**"
-      - "pyproject.toml"
+      - "v1/**"
       - ".github/workflows/v1-tests.yml"
   pull_request:
     paths:
-      - "scripts/**"
-      - "tests/**"
-      - "pyproject.toml"
+      - "v1/**"
 
 jobs:
   test:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: v1
     steps:
       - uses: actions/checkout@v4
 

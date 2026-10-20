@@ -4,6 +4,7 @@ version = "2.5.6"
 description = "Cross-platform Xiaomi Bluetooth Voice Remote bridge"
 authors = ["vlln"]
 edition = "2024"
+license = "GPL-3.0-only"
 
 [lib]
 name = "xiaomi_remote_v2_lib"
