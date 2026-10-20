@@ -85,3 +85,4 @@ sudo apt-get install -f
 - [按键映射](docs/KEY_MAPPING.md)
 - [CHANGELOG](CHANGELOG.md)
 - [橙圈对齐工具](tools/align-hotspots.html)
+- [配合语音输入法（Typeless / 豆包）](docs/VOICE_INPUT.md)

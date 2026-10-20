@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Docs
+
+- Add Typeless and 豆包语音输入法 integration guide
+
 ## 2.5.7
 
 ### Changed

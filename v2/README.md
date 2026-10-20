@@ -153,6 +153,17 @@ cd src-tauri
 cargo test --lib
 ```
 
+## 配合语音输入法
+
+Typeless、豆包语音输入法都支持“按住一个快捷键拾音 → 转文字”。把它们的快捷键设成与遥控器语音目标相同的键即可：
+
+1. 「按键映射 → 语音键」目标设为 `F6`。
+2. 音频输出选 **BlackHole 2ch**；输入法麦克风也选 **BlackHole 2ch**。
+3. 输入法里选择「按住说话」，快捷键设为 `F6`。
+4. 光标放在输入框，按住遥控器语音键说话。
+
+详细步骤、两个输入法冲突和排错见 [docs/VOICE_INPUT.md](docs/VOICE_INPUT.md)。
+
 ## macOS 使用
 
 1. 安装 BlackHole 2ch：
