@@ -218,6 +218,10 @@ fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEve
                 output.push(key_event(back_target, value));
                 continue;
             }
+            if let Some((_, target)) = custom.iter().find(|(source, _)| *source == code) {
+                output.push(key_event(*target, value));
+                continue;
+            }
         }
         output.push(event);
     }

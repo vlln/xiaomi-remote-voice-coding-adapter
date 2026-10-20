@@ -159,6 +159,23 @@ fn translate(
         return None;
     }
 
+    let custom_target = settings.custom.iter().find_map(|binding| {
+        if !binding.enabled {
+            return None;
+        }
+        let (source, source_e0) = usage::usage_to_scancode(binding.source.usage)?;
+        let (target, target_e0) = usage::usage_to_scancode(binding.target.usage)?;
+        (source == stroke.code && source_e0 == is_e0).then_some((target, target_e0))
+    });
+    if let Some((code, e0)) = custom_target {
+        stroke.code = code;
+        stroke.state &= !(STATE_E0 | 0x04);
+        if e0 {
+            stroke.state |= STATE_E0;
+        }
+        return Some(stroke);
+    }
+
     let target = if settings.home_to_escape
         && home.is_some_and(|(code, e0)| code == stroke.code && e0 == is_e0)
     {

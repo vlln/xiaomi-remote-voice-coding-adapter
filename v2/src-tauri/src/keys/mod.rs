@@ -46,6 +46,18 @@ impl Default for BackTarget {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CustomBinding {
+    pub source: KeySource,
+    pub target: KeySource,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyMapSettings {
     pub voice_to_right_option: bool,
@@ -61,6 +73,8 @@ pub struct KeyMapSettings {
     /// Target for the fixed Back button.
     #[serde(default = "default_back_target_key")]
     pub back_target_key: KeySource,
+    #[serde(default)]
+    pub custom: Vec<CustomBinding>,
 }
 
 fn default_home_target() -> KeySource {
@@ -85,6 +99,7 @@ impl Default for KeyMapSettings {
             home_target: default_home_target(),
             tv_target: default_tv_target(),
             back_target_key: default_back_target_key(),
+            custom: Vec::new(),
         }
     }
 }
@@ -95,6 +110,7 @@ impl KeyMapSettings {
             && !self.home_to_escape
             && !self.tv_to_backspace
             && self.back_target == BackTarget::None
+            && self.custom.iter().all(|binding| !binding.enabled)
     }
 }
 
@@ -245,6 +261,14 @@ mod macos {
         }
         if settings.back_target != BackTarget::None && settings.back_target_key.is_valid() {
             mappings.push(mapping(BACK_SOURCE, settings.back_target_key.usage as u32));
+        }
+        for binding in &settings.custom {
+            if binding.enabled && binding.source.is_valid() && binding.target.is_valid() {
+                mappings.push(mapping(
+                    binding.source.usage as u32,
+                    binding.target.usage as u32,
+                ));
+            }
         }
         mappings
     }
