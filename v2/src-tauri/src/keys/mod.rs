@@ -432,6 +432,7 @@ mod tests {
         assert!(!parsed.home_target.name.is_empty());
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn menu_target_is_mapped() {
         let mut settings = KeyMapSettings::default();

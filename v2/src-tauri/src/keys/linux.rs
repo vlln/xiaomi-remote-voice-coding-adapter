@@ -194,6 +194,11 @@ fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEve
         usage::usage_to_evdev(settings.tv_target.usage).unwrap_or(KeyCode::KEY_BACKSPACE.0);
     let back_target =
         usage::usage_to_evdev(settings.back_target_key.usage).unwrap_or(KeyCode::KEY_BACKSPACE.0);
+    let voice_target =
+        usage::usage_to_evdev(settings.voice_target.usage).unwrap_or(KeyCode::KEY_RIGHTALT.0);
+    let menu = usage::usage_to_evdev(usage::DEFAULT_MENU_USAGE).unwrap_or(KeyCode::KEY_MENU.0);
+    let menu_target =
+        usage::usage_to_evdev(settings.menu_target.usage).unwrap_or(KeyCode::KEY_MENU.0);
 
     let mut output = Vec::with_capacity(events.len());
     for event in events {
