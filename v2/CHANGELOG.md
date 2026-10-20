@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.5
+
+### Changed
+
+- Remove page/section subtitle lines that duplicated the headings
+- Remove the duplicate stop button inside the test status bar; the header chip keeps it
+
 ## 2.5.4
 
 ### Changed

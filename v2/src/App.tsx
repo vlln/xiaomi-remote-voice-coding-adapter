@@ -1035,7 +1035,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5.4</small>
+            <small>小米遥控器 2 · V2.5.5</small>
           </span>
         </div>
 
@@ -1076,7 +1076,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.4</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.5</div>
         </div>
       </aside>
 
@@ -1084,7 +1084,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
         <header className="page-head">
           <div>
             <h1>{pageMeta[page].title}</h1>
-            <p>{pageMeta[page].subtitle}</p>
           </div>
           <div className="page-actions">
             {page === "keys" && testing && (
@@ -1164,7 +1163,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>快速设置</h3>
-                    <p>完成这三步即可开始使用</p>
                   </div>
                   <span
                     className={`count ${readyCount === steps.length ? "ok" : ""}`}
@@ -1207,10 +1205,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>按键</h3>
-                    <p>
-                      {backendLabel(status.key_backend)} ·{" "}
-                      {snap.key_mapping_full ? "完整映射" : "仅语音键"}
-                    </p>
                   </div>
                   <button className="btn btn-small" onClick={() => go("keys")}>
                     配置
@@ -1239,7 +1233,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>音频</h3>
-                    <p>{draft.audio_device}</p>
                   </div>
                   <button className="btn btn-small" onClick={() => go("audio")}>
                     配置
@@ -1275,7 +1268,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>遥控器按键</h3>
-                    <p>遥控器按键固定，点击目标键后按键盘上的按键</p>
                   </div>
                   <div className="section-tools">
                     <button
@@ -1301,13 +1293,8 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
 
                 {testing && (
                   <div className="test-live">
-                    <div>
-                      <strong>测试中</strong>
-                      <span>按键事件已临时拦截，不会触发真实映射</span>
-                    </div>
-                    <button className="btn btn-small" onClick={stopTest}>
-                      停止测试
-                    </button>
+                    <span className="status-dot recording" />
+                    <span>测试中 · 按键事件已临时拦截</span>
                   </div>
                 )}
 
@@ -1431,7 +1418,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>虚拟麦克风</h3>
-                    <p>写入虚拟音频设备</p>
                   </div>
                   <button className="btn btn-small" onClick={() => setGuide("mic")}>
                     安装指引
@@ -1490,7 +1476,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>音频处理</h3>
-                    <p>调整后自动重启音频桥接</p>
                   </div>
                 </div>
                 <div className="processing-list">
@@ -1587,7 +1572,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>权限</h3>
-                    <p>发送干净的按键事件需要系统授权</p>
                   </div>
                   <span
                     className={`status-chip ${
@@ -1634,7 +1618,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="section-head">
                   <div>
                     <h3>运行日志</h3>
-                    <p>{snap.logs.length} 条</p>
                   </div>
                 </div>
                 <LogList logs={snap.logs} scrollRef={logRef} />
@@ -1644,7 +1627,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.4</strong>
+                    <strong>2.5.5</strong>
                   </div>
                   <div>
                     <span>平台</span>
