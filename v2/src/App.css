@@ -93,8 +93,15 @@ button:disabled {
   height: 32px;
   flex: 0 0 32px;
   border-radius: 9px;
+  overflow: hidden;
   color: #fff;
   background: var(--accent);
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .sidebar-brand strong {
@@ -1503,6 +1510,10 @@ button:disabled {
   margin-top: 0;
 }
 
+.keys-mini {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .mini-flow {
   display: flex;
   align-items: center;
@@ -1543,49 +1554,6 @@ button:disabled {
   height: 24px;
 }
 
-.custom-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.custom-head {
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-  padding: 2px 1px;
-}
-
-.custom-head div {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.custom-head .btn {
-  align-self: flex-start;
-}
-
-.custom-head strong {
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.custom-head span {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.custom-list {
-  box-shadow: none;
-}
-
-.custom-list .key-row {
-  padding: 10px 13px;
-}
-
 .author-row {
   display: flex;
   align-items: center;
@@ -1597,10 +1565,11 @@ button:disabled {
   background: var(--panel);
 }
 
-.author-row div {
+.author-copy {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 .author-row span {
@@ -1611,6 +1580,19 @@ button:disabled {
 .author-row strong {
   font-size: 12.5px;
   font-weight: 600;
+}
+
+.btn-star {
+  flex: none;
+  gap: 6px;
+  border-color: #ffd2b4;
+  color: #b84a00;
+  background: #fff8f2;
+}
+
+.btn-star:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* Narrow window */

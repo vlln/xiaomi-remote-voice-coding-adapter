@@ -66,7 +66,8 @@ impl KeyMapper for LinuxKeyMapper {
 
     fn apply(&self, settings: &KeyMapSettings) -> Result<(), String> {
         self.stop_worker();
-        voice_modifier::set_enabled(settings.voice_to_right_option);
+        let voice_alt = settings.voice_target.usage == usage::DEFAULT_VOICE_TARGET;
+        voice_modifier::set_enabled(settings.voice_to_right_option && voice_alt);
         if settings.is_empty() {
             return Ok(());
         }
@@ -201,7 +202,11 @@ fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEve
             let value = event.value();
 
             if settings.voice_to_right_option && code == voice {
-                // The ATVV engine emits the right-Alt modifier.
+                if voice_target == KeyCode::KEY_RIGHTALT.0 {
+                    // The ATVV engine emits the right-Alt modifier.
+                    continue;
+                }
+                output.push(key_event(voice_target, value));
                 continue;
             }
             if settings.home_to_escape && code == home {
@@ -218,8 +223,8 @@ fn translate(events: Vec<InputEvent>, settings: &KeyMapSettings) -> Vec<InputEve
                 output.push(key_event(back_target, value));
                 continue;
             }
-            if let Some((_, target)) = custom.iter().find(|(source, _)| *source == code) {
-                output.push(key_event(*target, value));
+            if settings.menu_to_context && code == menu {
+                output.push(key_event(menu_target, value));
                 continue;
             }
         }

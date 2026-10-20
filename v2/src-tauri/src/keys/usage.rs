@@ -58,6 +58,11 @@ pub fn usage_name(usage: u16) -> String {
         0xE5 => "Right Shift",
         0xE6 => "Right Option",
         0xE7 => "Right Command",
+        0x65 => "Menu",
+        0x66 => "Power",
+        0x7F => "Mute",
+        0x80 => "Volume Up",
+        0x81 => "Volume Down",
         0xF1 => "Back (AC Back)",
         _ => return format!("Key 0x{usage:02X}"),
     };
@@ -139,6 +144,11 @@ pub fn usage_to_macos_keycode(usage: u16) -> Option<u16> {
         0xE5 => 60,
         0xE6 => 61,
         0xE7 => 54,
+        0x65 => 110,
+        0x66 => 127,
+        0x7F => 74,
+        0x80 => 72,
+        0x81 => 73,
         _ => return None,
     };
     Some(code)
@@ -212,6 +222,11 @@ pub fn usage_to_evdev(usage: u16) -> Option<u16> {
         0xE5 => 54,
         0xE6 => 100,
         0xE7 => 126,
+        0x65 => 139,
+        0x66 => 116,
+        0x7F => 113,
+        0x80 => 115,
+        0x81 => 114,
         _ => return None,
     };
     Some(code)
@@ -293,6 +308,11 @@ pub fn usage_to_scancode(usage: u16) -> Option<(u16, bool)> {
         0xE5 => (0x36, false),
         0xE6 => (0x38, true),
         0xE7 => (0x5C, true),
+        0x65 => (0x5D, true),
+        0x66 => (0x5E, true),
+        0x7F => (0x20, true),
+        0x80 => (0x30, true),
+        0x81 => (0x2E, true),
         _ => return None,
     };
     Some(value)
@@ -303,6 +323,8 @@ pub const DEFAULT_VOICE_USAGE: u16 = 0x3E;
 pub const DEFAULT_HOME_USAGE: u16 = 0x4A;
 pub const DEFAULT_TV_USAGE: u16 = 0x35;
 pub const DEFAULT_BACK_USAGE: u16 = 0xF1;
+pub const DEFAULT_MENU_USAGE: u16 = 0x65;
+pub const DEFAULT_VOICE_TARGET: u16 = 0xE6;
 
 /// Reverse mapping used when recording a key through the macOS event tap.
 pub fn macos_keycode_to_usage(keycode: u16) -> Option<u16> {
@@ -379,6 +401,11 @@ pub fn macos_keycode_to_usage(keycode: u16) -> Option<u16> {
         60 => 0xE5,
         61 => 0xE6,
         62 => 0xE4,
+        110 => 0x65,
+        127 => 0x66,
+        74 => 0x7F,
+        72 => 0x80,
+        73 => 0x81,
         _ => return None,
     };
     Some(usage)

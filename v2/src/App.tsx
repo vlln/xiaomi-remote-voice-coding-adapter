@@ -4,26 +4,22 @@ import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 type BackTarget = "none" | "backspace" | "escape";
-type KeyAction = "voice" | "home" | "tv" | "back";
+type KeyAction = "voice" | "home" | "tv" | "menu" | "back";
 type Page = "overview" | "keys" | "audio" | "advanced";
 type Guide = "mic" | "permission" | "remote";
 
 type KeySource = { usage: number; name?: string };
-type CustomBinding = {
-  source: KeySource;
-  target: KeySource;
-  enabled: boolean;
-};
-
 type KeyMapSettings = {
   voice_to_right_option: boolean;
   home_to_escape: boolean;
   tv_to_backspace: boolean;
   back_target: BackTarget;
+  menu_to_context: boolean;
+  voice_target: KeySource;
+  menu_target: KeySource;
   home_target: KeySource;
   tv_target: KeySource;
   back_target_key: KeySource;
-  custom: CustomBinding[];
 };
 
 type AudioProcessing = {
@@ -86,17 +82,20 @@ const DEFAULT_KEYS: KeyMapSettings = {
   home_to_escape: true,
   tv_to_backspace: true,
   back_target: "backspace",
+  menu_to_context: true,
+  voice_target: { usage: 0xe6, name: "Right Option" },
+  menu_target: { usage: 0x65, name: "Menu" },
   home_target: { usage: 0x29, name: "Esc" },
   tv_target: { usage: 0x2a, name: "Backspace" },
   back_target_key: { usage: 0x2a, name: "Backspace" },
-  custom: [],
 };
 
-const ACTIONS: KeyAction[] = ["voice", "home", "tv", "back"];
+const ACTIONS: KeyAction[] = ["voice", "home", "tv", "menu", "back"];
 const BUILTIN_SOURCES: Record<KeyAction, number> = {
   voice: 0x3e,
   home: 0x4a,
   tv: 0x35,
+  menu: 0x65,
   back: 0xf1,
 };
 
@@ -121,6 +120,12 @@ const ACTION_META: Record<
     desc: "固定来源：遥控器 TV",
     target: "退格",
     icon: "tv",
+  },
+  menu: {
+    label: "菜单键",
+    desc: "固定来源：遥控器菜单",
+    target: "菜单",
+    icon: "menu",
   },
   back: {
     label: "返回键",
@@ -180,6 +185,24 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
       return (
         <svg {...common}>
           <path d="M19 12H5M11 18l-6-6 6-6" />
+        </svg>
+      );
+    case "menu":
+      return (
+        <svg {...common}>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      );
+    case "github":
+      return (
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 1.72 2.63 1.22 3.27.93.1-.72.39-1.22.71-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.16a10.8 10.8 0 0 1 5.65 0c2.15-1.46 3.1-1.16 3.1-1.16.61 1.55.23 2.7.11 2.98.72.79 1.16 1.8 1.16 3.03 0 4.33-2.64 5.28-5.15 5.56.4.35.76 1.03.76 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8z" />
         </svg>
       );
     case "speaker":
@@ -293,6 +316,9 @@ function targetLabel(source: KeySource) {
   if (source.name === "Return") return "回车";
   if (source.name === "Space") return "空格";
   if (source.name === "Delete") return "删除";
+  if (source.name === "Right Option") return "右 Option";
+  if (source.name === "Right Alt") return "右 Alt";
+  if (source.name === "Menu") return "菜单";
   return sourceLabel(source);
 }
 
@@ -315,6 +341,7 @@ const HOTSPOTS: {
   { action: "back", label: "返回键", top: "40.1%", left: "35.5%" },
   { action: "home", label: "Home 键", top: "48.4%", left: "35.5%" },
   { action: "tv", label: "TV 键", top: "56.3%", left: "67.7%" },
+  { action: "menu", label: "菜单键", top: "56.3%", left: "35.5%" },
 ];
 
 function RemoteVisual({
@@ -362,11 +389,6 @@ function App() {
   const [page, setPage] = useState<Page>("overview");
   const [capturing, setCapturing] = useState<KeyAction | null>(null);
   const [testing, setTesting] = useState(false);
-  const [customStep, setCustomStep] = useState<"source" | "target" | null>(
-    null,
-  );
-  const [customSource, setCustomSource] = useState<KeySource | null>(null);
-  const [editingCustom, setEditingCustom] = useState<number | null>(null);
   const [pressedAction, setPressedAction] = useState<KeyAction | null>(null);
   const [testResult, setTestResult] = useState<{
     source: string;
@@ -459,7 +481,10 @@ function App() {
 
   const { status } = snap;
   const platform = snap.platform;
-  const voiceTarget = platform === "macos" ? "右 Option" : "右 Alt";
+  const fallbackVoiceTarget = platform === "macos" ? "右 Option" : "右 Alt";
+  const voiceTarget = draft
+    ? targetLabel(draft.key_map.voice_target)
+    : fallbackVoiceTarget;
   const metaFor = (action: KeyAction) => ({
     ...ACTION_META[action],
     desc:
@@ -648,6 +673,8 @@ function App() {
 
   function targetFor(action: KeyAction): KeySource | null {
     if (!draft) return null;
+    if (action === "voice") return draft.key_map.voice_target;
+    if (action === "menu") return draft.key_map.menu_target;
     if (action === "home") return draft.key_map.home_target;
     if (action === "tv") return draft.key_map.tv_target;
     if (action === "back") return draft.key_map.back_target_key;
@@ -657,19 +684,30 @@ function App() {
   function enabledFor(action: KeyAction) {
     if (!draft) return false;
     if (action === "voice") return draft.key_map.voice_to_right_option;
+    if (action === "menu") return draft.key_map.menu_to_context;
     if (action === "home") return draft.key_map.home_to_escape;
     if (action === "tv") return draft.key_map.tv_to_backspace;
     return draft.key_map.back_target !== "none";
   }
 
   async function capture(action: KeyAction) {
-    if (!draft || busy || action === "voice") return;
+    if (!draft || busy) return;
     setCapturing(action);
     setTestResult(null);
     try {
       const key = await invoke<CapturedKey>("capture_key");
       const target = { usage: key.usage, name: key.name };
-      if (action === "home") {
+      if (action === "voice") {
+        await saveKeys(
+          { voice_target: target, voice_to_right_option: true },
+          `语音键 → ${key.name}`,
+        );
+      } else if (action === "menu") {
+        await saveKeys(
+          { menu_target: target, menu_to_context: true },
+          `菜单键 → ${key.name}`,
+        );
+      } else if (action === "home") {
         await saveKeys(
           { home_target: target, home_to_escape: true },
           `Home 键 → ${key.name}`,
@@ -704,9 +742,7 @@ function App() {
       const enabled = enabledFor(known);
       const target = !enabled
         ? "已禁用"
-        : known === "voice"
-          ? voiceTarget
-          : targetLabel(targetFor(known)!);
+        : targetLabel(targetFor(known)!);
       setPressedAction(known);
       setTestResult({
         source: metaFor(known).label,
@@ -717,18 +753,7 @@ function App() {
       return;
     }
 
-    const binding = draft.key_map.custom.find(
-      (item) => item.source.usage === key.usage,
-    );
-    if (binding) {
-      setTestResult({
-        source: binding.source.name || key.name,
-        target: binding.enabled ? targetLabel(binding.target) : "已禁用",
-        ok: binding.enabled,
-      });
-    } else {
-      setTestResult({ source: key.name, target: "未绑定", ok: false });
-    }
+    setTestResult({ source: key.name, target: "未绑定", ok: false });
   }
 
   async function startTest() {
@@ -738,8 +763,6 @@ function App() {
       busy ||
       testing ||
       capturing ||
-      customStep ||
-      editingCustom !== null ||
       !snap.key_capture_supported
     ) {
       return;
@@ -754,80 +777,6 @@ function App() {
     } finally {
       setTesting(false);
     }
-  }
-
-  function sourceExists(usage: number) {
-    if (!draft) return false;
-    return (
-      ACTIONS.some((action) => BUILTIN_SOURCES[action] === usage) ||
-      draft.key_map.custom.some((binding) => binding.source.usage === usage)
-    );
-  }
-
-  async function addCustom() {
-    if (!draft || !snap || busy || !snap.key_capture_supported) return;
-    setCustomStep("source");
-    setCustomSource(null);
-    try {
-      const source = await invoke<CapturedKey>("capture_key");
-      if (sourceExists(source.usage)) {
-        setToast("这个遥控器按键已经存在");
-        return;
-      }
-      const sourceKey = { usage: source.usage, name: source.name };
-      setCustomSource(sourceKey);
-      setCustomStep("target");
-      const target = await invoke<CapturedKey>("capture_key");
-      const custom = [
-        ...draft.key_map.custom,
-        {
-          source: sourceKey,
-          target: { usage: target.usage, name: target.name },
-          enabled: true,
-        },
-      ];
-      await saveKeys(
-        { custom },
-        `已添加 ${source.name} → ${target.name}`,
-      );
-    } catch (error) {
-      setToast(String(error));
-    } finally {
-      setCustomStep(null);
-      setCustomSource(null);
-    }
-  }
-
-  async function editCustomTarget(index: number) {
-    if (!draft || busy) return;
-    setEditingCustom(index);
-    try {
-      const key = await invoke<CapturedKey>("capture_key");
-      const custom = draft.key_map.custom.map((binding, item) =>
-        item === index
-          ? { ...binding, target: { usage: key.usage, name: key.name } }
-          : binding,
-      );
-      await saveKeys({ custom }, `目标键已改为 ${key.name}`);
-    } catch (error) {
-      setToast(String(error));
-    } finally {
-      setEditingCustom(null);
-    }
-  }
-
-  function removeCustom(index: number) {
-    if (!draft) return;
-    const custom = draft.key_map.custom.filter((_, item) => item !== index);
-    saveKeys({ custom }, "已删除");
-  }
-
-  function toggleCustom(index: number, enabled: boolean) {
-    if (!draft) return;
-    const custom = draft.key_map.custom.map((binding, item) =>
-      item === index ? { ...binding, enabled } : binding,
-    );
-    saveKeys({ custom });
   }
 
   async function resetKeys() {
@@ -911,9 +860,6 @@ function App() {
               <button className="btn btn-ghost" onClick={() => copyText(command)}>
                 复制命令
               </button>
-              <button className="btn btn-primary" onClick={() => { setGuide(null); go("audio"); }}>
-                前往音频
-              </button>
             </div>
           </>
         );
@@ -947,11 +893,8 @@ function App() {
                 复制命令
               </button>
             )}
-            <button className="btn btn-ghost" onClick={() => openUrl(url)}>
+            <button className="btn btn-primary" onClick={() => openUrl(url)}>
               打开下载页
-            </button>
-            <button className="btn btn-primary" onClick={() => { setGuide(null); go("audio"); }}>
-              前往音频
             </button>
           </div>
         </>
@@ -1062,11 +1005,11 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
       <aside className="sidebar">
         <div className="sidebar-brand">
           <span className="brand-mark">
-            <Icon name="wave" size={20} />
+            <img src="/app-icon.png" alt="" draggable={false} />
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.4</small>
+            <small>小米遥控器 2 · V2.5</small>
           </span>
         </div>
 
@@ -1107,7 +1050,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.4.0</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.0</div>
         </div>
       </aside>
 
@@ -1238,7 +1181,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                     配置
                   </button>
                 </div>
-                <div className="mini-keys">
+                <div className="mini-keys keys-mini">
                   {ACTIONS.map((action) => (
                     <div className="mini-key" key={action}>
                       <span>{ACTION_META[action].label}</span>
@@ -1307,9 +1250,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                         !snap.key_capture_supported ||
                         busy ||
                         testing ||
-                        Boolean(capturing) ||
-                        Boolean(customStep) ||
-                        editingCustom !== null
+                        Boolean(capturing)
                       }
                     >
                       {testing ? "测试中…" : "测试按键"}
@@ -1336,16 +1277,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                     capturing={capturing}
                     pressed={pressedAction}
                     disabled={
-                      !snap.key_capture_supported ||
-                      busy ||
-                      testing ||
-                      Boolean(customStep)
+                      !snap.key_capture_supported || busy || testing
                     }
-                    onPick={(action) =>
-                      action === "voice"
-                        ? setToast(`语音键固定映射为${voiceTarget}`)
-                        : capture(action)
-                    }
+                    onPick={(action) => capture(action)}
                   />
 
                   <div className="keys-main">
@@ -1375,30 +1309,24 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                             </div>
                             <div className="key-flow">
                               <span className="arrow">→</span>
-                              {action === "voice" ? (
-                                <span className="target locked">
-                                  {voiceTarget}
-                                </span>
-                              ) : (
-                                <button
-                                  className={`shortcut ${
-                                    capturing === action ? "capturing" : ""
-                                  }`}
-                                  disabled={
-                                    disabled ||
-                                    busy ||
-                                    testing ||
-                                    !snap.key_capture_supported
-                                  }
-                                  onClick={() => capture(action)}
-                                  title="点击设置目标键"
-                                >
-                                  <Icon name="keyboard" size={13} />
-                                  {capturing === action
-                                    ? "按下按键…"
-                                    : targetName}
-                                </button>
-                              )}
+                              <button
+                                className={`shortcut ${
+                                  capturing === action ? "capturing" : ""
+                                }`}
+                                disabled={
+                                  disabled ||
+                                  busy ||
+                                  testing ||
+                                  !snap.key_capture_supported
+                                }
+                                onClick={() => capture(action)}
+                                title="点击设置目标键"
+                              >
+                                <Icon name="keyboard" size={13} />
+                                {capturing === action
+                                  ? "按下按键…"
+                                  : targetName}
+                              </button>
                               <Switch
                                 checked={enabled}
                                 disabled={disabled || busy}
@@ -1414,9 +1342,11 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                                     const field =
                                       action === "voice"
                                         ? "voice_to_right_option"
-                                        : action === "home"
-                                          ? "home_to_escape"
-                                          : "tv_to_backspace";
+                                        : action === "menu"
+                                          ? "menu_to_context"
+                                          : action === "home"
+                                            ? "home_to_escape"
+                                            : "tv_to_backspace";
                                     saveKeys({ [field]: value });
                                   }
                                 }}
@@ -1438,84 +1368,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                         <strong>{testResult.target}</strong>
                       </div>
                     )}
-
-                    <div className="custom-section">
-                      <div className="custom-head">
-                        <div>
-                          <strong>其他按键</strong>
-                          <span>遥控器上其他可识别的按键</span>
-                        </div>
-                        <button
-                          className="btn btn-small"
-                          onClick={addCustom}
-                          disabled={
-                            !snap.key_capture_supported ||
-                            busy ||
-                            testing ||
-                            Boolean(customStep)
-                          }
-                        >
-                          添加按键
-                        </button>
-                      </div>
-                      {draft.key_map.custom.length > 0 ? (
-                        <div className="key-list custom-list">
-                          {draft.key_map.custom.map((binding, index) => (
-                            <div
-                              className="key-row"
-                              key={`${binding.source.usage}-${index}`}
-                            >
-                              <div className="key-main">
-                                <span className="key-icon">
-                                  <Icon name="keyboard" size={17} />
-                                </span>
-                                <div>
-                                  <strong>
-                                    {binding.source.name || "未知按键"}
-                                  </strong>
-                                  <span>自定义来源</span>
-                                </div>
-                              </div>
-                              <div className="key-flow">
-                                <span className="arrow">→</span>
-                                <button
-                                  className={`shortcut ${
-                                    editingCustom === index ? "capturing" : ""
-                                  }`}
-                                  disabled={busy || testing}
-                                  onClick={() => editCustomTarget(index)}
-                                  title="点击设置目标键"
-                                >
-                                  <Icon name="keyboard" size={13} />
-                                  {editingCustom === index
-                                    ? "按下按键…"
-                                    : targetLabel(binding.target)}
-                                </button>
-                                <Switch
-                                  checked={binding.enabled}
-                                  disabled={busy}
-                                  label="自定义按键启用"
-                                  onChange={(value) =>
-                                    toggleCustom(index, value)
-                                  }
-                                />
-                                <button
-                                  className="icon-btn"
-                                  title="删除"
-                                  onClick={() => removeCustom(index)}
-                                >
-                                  <Icon name="x" size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="inline-note">
-                          点击「添加按键」，先按遥控器上的其他按键，再按键盘目标键。
-                        </p>
-                      )}
-                    </div>
 
                     {!snap.key_mapping_full && (
                       <p className="inline-note">
@@ -1753,7 +1605,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.4.0</strong>
+                    <strong>2.5.0</strong>
                   </div>
                   <div>
                     <span>平台</span>
@@ -1769,19 +1621,22 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                   </div>
                 </div>
                 <div className="author-row">
-                  <div>
-                    <span>作者</span>
-                    <strong>vlln</strong>
+                  <div className="author-copy">
+                    <span>作者 vlln</span>
+                    <strong>
+                      如果它让你的遥控器更好用，去 GitHub 点个 Star 支持一下
+                    </strong>
                   </div>
                   <button
-                    className="btn btn-small"
+                    className="btn btn-small btn-star"
                     onClick={() =>
                       openUrl(
                         "https://github.com/vlln/xiaomi-remote-voice-coding-adapter",
                       )
                     }
                   >
-                    打开 GitHub
+                    <Icon name="github" size={15} />
+                    去点 Star
                   </button>
                 </div>
               </section>
@@ -1817,40 +1672,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             </p>
             <span className="capture-timer">10 秒后自动取消</span>
             <button className="btn btn-ghost" onClick={cancelCapture}>
-              取消
-            </button>
-          </div>
-        </div>
-      )}
-
-      {(customStep || editingCustom !== null) && (
-        <div className="capture-overlay">
-          <div className="capture-card">
-            <span className="capture-key">
-              <Icon name="keyboard" size={30} />
-            </span>
-            <h2>
-              {customStep === "source"
-                ? "按下遥控器上要新增的按键"
-                : "按下要映射到的目标键"}
-            </h2>
-            <p>
-              {customStep === "source"
-                ? "新增一个自定义按键"
-                : customStep === "target"
-                  ? `正在设置「${customSource?.name ?? "新按键"}」的目标键`
-                  : "修改自定义按键的目标键"}
-            </p>
-            <span className="capture-timer">10 秒后自动取消</span>
-            <button
-              className="btn btn-ghost"
-              onClick={() => {
-                invoke("cancel_key_capture").catch(() => {});
-                setCustomStep(null);
-                setCustomSource(null);
-                setEditingCustom(null);
-              }}
-            >
               取消
             </button>
           </div>

@@ -9,10 +9,15 @@
 //! with a virtual right-menu key; Linux creates a tiny uinput keyboard and
 //! emits `KEY_RIGHTALT`.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
 static DOWN: AtomicBool = AtomicBool::new(false);
+static TARGET_KEYCODE: AtomicU16 = AtomicU16::new(61);
+
+pub fn set_target(keycode: u16) {
+    TARGET_KEYCODE.store(keycode, Ordering::Relaxed);
+}
 
 pub fn set_enabled(enabled: bool) {
     ENABLED.store(enabled, Ordering::Relaxed);
@@ -43,20 +48,23 @@ fn post(down: bool) {
     use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
     const RIGHT_OPTION_KEYCODE: u16 = 61;
+    let target = TARGET_KEYCODE.load(Ordering::Relaxed);
     let Ok(source) = CGEventSource::new(CGEventSourceStateID::Private) else {
         return;
     };
-    let Ok(event) = CGEvent::new_keyboard_event(source, RIGHT_OPTION_KEYCODE, down) else {
+    let Ok(event) = CGEvent::new_keyboard_event(source, target, down) else {
         return;
     };
-    event.set_type(CGEventType::FlagsChanged);
-    event.set_flags(if down {
-        CGEventFlags::CGEventFlagAlternate
-    } else {
-        CGEventFlags::empty()
-    });
+    if target == RIGHT_OPTION_KEYCODE {
+        event.set_type(CGEventType::FlagsChanged);
+        event.set_flags(if down {
+            CGEventFlags::CGEventFlagAlternate
+        } else {
+            CGEventFlags::empty()
+        });
+    }
     event.post(CGEventTapLocation::HID);
-    tracing::debug!(down, "posted right Option");
+    tracing::debug!(down, target, "posted voice target key");
 }
 
 #[cfg(target_os = "windows")]

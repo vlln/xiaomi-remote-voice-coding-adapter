@@ -46,24 +46,20 @@ impl Default for BackTarget {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CustomBinding {
-    pub source: KeySource,
-    pub target: KeySource,
-    #[serde(default = "default_enabled")]
-    pub enabled: bool,
-}
-
-fn default_enabled() -> bool {
-    true
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyMapSettings {
     pub voice_to_right_option: bool,
     pub home_to_escape: bool,
     pub tv_to_backspace: bool,
     pub back_target: BackTarget,
+    #[serde(default = "default_true")]
+    pub menu_to_context: bool,
+    /// Target for the fixed voice button; defaults to right Option/Alt.
+    #[serde(default = "default_voice_target")]
+    pub voice_target: KeySource,
+    /// Target for the fixed menu button.
+    #[serde(default = "default_menu_target")]
+    pub menu_target: KeySource,
     /// Target for the fixed Home button.
     #[serde(default = "default_home_target")]
     pub home_target: KeySource,
@@ -73,8 +69,18 @@ pub struct KeyMapSettings {
     /// Target for the fixed Back button.
     #[serde(default = "default_back_target_key")]
     pub back_target_key: KeySource,
-    #[serde(default)]
-    pub custom: Vec<CustomBinding>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_voice_target() -> KeySource {
+    KeySource::new(usage::DEFAULT_VOICE_TARGET)
+}
+
+fn default_menu_target() -> KeySource {
+    KeySource::new(usage::DEFAULT_MENU_USAGE)
 }
 
 fn default_home_target() -> KeySource {
@@ -96,10 +102,12 @@ impl Default for KeyMapSettings {
             home_to_escape: true,
             tv_to_backspace: true,
             back_target: BackTarget::Backspace,
+            menu_to_context: true,
+            voice_target: default_voice_target(),
+            menu_target: default_menu_target(),
             home_target: default_home_target(),
             tv_target: default_tv_target(),
             back_target_key: default_back_target_key(),
-            custom: Vec::new(),
         }
     }
 }
@@ -110,7 +118,7 @@ impl KeyMapSettings {
             && !self.home_to_escape
             && !self.tv_to_backspace
             && self.back_target == BackTarget::None
-            && self.custom.iter().all(|binding| !binding.enabled)
+            && !self.menu_to_context
     }
 }
 
@@ -193,12 +201,14 @@ mod macos {
                     "Accessibility permission is required for a clean right Option;                      falling back to hidutil F5+Option until it is granted"
                 );
             }
-            voice_modifier::set_enabled(settings.voice_to_right_option);
-            let voice_keycode =
-                super::usage::usage_to_macos_keycode(super::usage::DEFAULT_VOICE_USAGE)
-                    .unwrap_or(0);
-            let tap_active = settings.voice_to_right_option && macos_tap::ensure_tap();
-            macos_tap::set_voice_keycode(if tap_active { voice_keycode } else { 0 });
+            let voice_enabled = settings.voice_to_right_option;
+            let voice_target_keycode =
+                super::usage::usage_to_macos_keycode(settings.voice_target.usage);
+            let tap_active =
+                voice_enabled && voice_target_keycode.is_some() && macos_tap::ensure_tap();
+            macos_tap::set_voice_keycode(if tap_active { 96 } else { 0 });
+            voice_modifier::set_target(voice_target_keycode.unwrap_or(61));
+            voice_modifier::set_enabled(voice_enabled);
             let mappings = build_mappings(settings, tap_active);
             let json = serde_json::json!({ "UserKeyMapping": mappings }).to_string();
             let matching = format!(r#"{{"VendorID":{VENDOR_ID},"ProductID":{PRODUCT_ID}}}"#);
@@ -240,7 +250,10 @@ mod macos {
         }
     }
 
-    fn build_mappings(settings: &KeyMapSettings, tap_active: bool) -> Vec<serde_json::Value> {
+    pub(super) fn build_mappings(
+        settings: &KeyMapSettings,
+        tap_active: bool,
+    ) -> Vec<serde_json::Value> {
         let mut mappings = Vec::new();
         // With the event tap active, the voice key is driven by the ATVV
         // session engine and F5 is swallowed. Without Accessibility, fall back
@@ -251,7 +264,7 @@ mod macos {
         const BACK_SOURCE: u32 = super::usage::DEFAULT_BACK_USAGE as u32;
 
         if settings.voice_to_right_option && !tap_active {
-            mappings.push(mapping(VOICE_SOURCE, 0xE6));
+            mappings.push(mapping(VOICE_SOURCE, settings.voice_target.usage as u32));
         }
         if settings.home_to_escape && settings.home_target.is_valid() {
             mappings.push(mapping(HOME_SOURCE, settings.home_target.usage as u32));
@@ -262,13 +275,9 @@ mod macos {
         if settings.back_target != BackTarget::None && settings.back_target_key.is_valid() {
             mappings.push(mapping(BACK_SOURCE, settings.back_target_key.usage as u32));
         }
-        for binding in &settings.custom {
-            if binding.enabled && binding.source.is_valid() && binding.target.is_valid() {
-                mappings.push(mapping(
-                    binding.source.usage as u32,
-                    binding.target.usage as u32,
-                ));
-            }
+        const MENU_SOURCE: u32 = super::usage::DEFAULT_MENU_USAGE as u32;
+        if settings.menu_to_context && settings.menu_target.is_valid() {
+            mappings.push(mapping(MENU_SOURCE, settings.menu_target.usage as u32));
         }
         mappings
     }
@@ -331,14 +340,18 @@ mod windows {
         }
 
         fn apply(&self, settings: &KeyMapSettings) -> Result<(), String> {
-            voice_modifier::set_enabled(settings.voice_to_right_option);
+            voice_modifier::set_enabled(
+                settings.voice_to_right_option
+                    && settings.voice_target.usage == super::usage::DEFAULT_VOICE_TARGET,
+            );
 
             #[cfg(feature = "interception")]
             {
                 self.stop_worker();
                 let wants_remap = settings.home_to_escape
                     || settings.tv_to_backspace
-                    || settings.back_target != BackTarget::None;
+                    || settings.back_target != BackTarget::None
+                    || settings.menu_to_context;
                 if wants_remap {
                     match super::windows_interception::start(settings.clone()) {
                         Ok(worker) => *self.worker.lock() = Some(worker),
@@ -353,6 +366,7 @@ mod windows {
             if settings.home_to_escape
                 || settings.tv_to_backspace
                 || settings.back_target != BackTarget::None
+                || settings.menu_to_context
             {
                 tracing::warn!(
                     "Windows Home/TV/Back mapping needs the optional `interception` feature and driver; only voice is active"
@@ -412,6 +426,20 @@ mod tests {
         assert_eq!(parsed.home_target.usage, 0x29);
         assert_eq!(parsed.tv_target.usage, 0x2A);
         assert_eq!(parsed.back_target_key.usage, 0x2A);
+        assert_eq!(parsed.voice_target.usage, 0xE6);
+        assert_eq!(parsed.menu_target.usage, 0x65);
+        assert!(parsed.menu_to_context);
         assert!(!parsed.home_target.name.is_empty());
+    }
+
+    #[test]
+    fn menu_target_is_mapped() {
+        let mut settings = KeyMapSettings::default();
+        settings.menu_target = KeySource::new(0x29);
+        let mappings = macos::build_mappings(&settings, true);
+        assert!(mappings.iter().any(|entry| {
+            entry["HIDKeyboardModifierMappingSrc"] == (0x7000_0000u32 | 0x65)
+                && entry["HIDKeyboardModifierMappingDst"] == (0x7000_0000u32 | 0x29)
+        }));
     }
 }
