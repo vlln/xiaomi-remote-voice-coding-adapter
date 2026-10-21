@@ -20,9 +20,9 @@ Release: [v2.5.8](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/rel
 
 | 平台 | 安装包 | SHA-256 |
 |---|---|---|
-| macOS arm64 | [Xiaomi.Remote_2.5.8_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_aarch64.dmg) | 见 Release |
-| Windows x64 | [Xiaomi.Remote_2.5.8_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_x64-setup.exe) | 见 Release |
-| Linux amd64 | [Xiaomi.Remote_2.5.8_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_amd64.deb) | 见 Release |
+| macOS arm64 | [Xiaomi.Remote_2.5.8_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_aarch64.dmg) | `5a2c774fa39eb3fc79d72779de5b1eafe3e1706da24210e785533a79e92734ca` |
+| Windows x64 | [Xiaomi.Remote_2.5.8_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_x64-setup.exe) | `94e8395c6075edad6bd229c86d2f41d74f105f064ea28ad6d9b882587c8f68ab` |
+| Linux amd64 | [Xiaomi.Remote_2.5.8_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_amd64.deb) | `75d0e3e51bcc3d7cb3a448621b0f3b234e5c6ba66dd21ee896365e7ebd9f3fc8` |
 
 > Windows/Linux 包由 CI 构建并跑过单元测试，但**没有真机验证** BLE/音频/按键；请按实验性版本对待。macOS 已实机验证。
 
