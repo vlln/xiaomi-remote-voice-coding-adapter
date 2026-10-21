@@ -60,13 +60,15 @@ async fn update_settings(app: AppHandle, settings: Settings) -> Result<Snapshot,
 }
 
 #[tauri::command]
-fn list_audio_devices() -> Vec<audio::AudioDeviceInfo> {
-    audio::list_output_devices()
+fn list_audio_devices(app: AppHandle) -> Vec<audio::AudioDeviceInfo> {
+    app.state::<AppState>().refresh_devices()
 }
 
 #[tauri::command]
 fn refresh_devices(app: AppHandle) -> Snapshot {
-    app.state::<AppState>().snapshot()
+    let state = app.state::<AppState>();
+    state.refresh_devices();
+    state.snapshot()
 }
 
 #[tauri::command]

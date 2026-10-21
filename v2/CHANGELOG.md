@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.5.8
+
+### Fixed
+
+- Stop enumerating CoreAudio devices on every status poll; cache the list and refresh only when opening the audio page
+- Removes the ~3 s CoreAudio stream churn, speaker tick, and related main-thread stalls
+
+### Docs
+
+- Add Typeless and 豆包语音输入法 integration guide
+
 ## Unreleased
 
 ### Docs

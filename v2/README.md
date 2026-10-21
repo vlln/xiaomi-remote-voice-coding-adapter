@@ -1,10 +1,10 @@
-# Xiaomi Remote V2.5.7
+# Xiaomi Remote V2.5.8
 
 跨平台的「小米遥控器 2」桌面端：BLE ATVV 语音桥接 + 虚拟麦克风 + 设备级按键映射 + 菜单栏 UI。
 
 V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本已归档在 [`../v1/`](../v1/README.md)。
 
-> **发布状态（V2.5.7）**
+> **发布状态（V2.5.8）**
 >
 > - **macOS**：已在真实设备验证（Apple Silicon，macOS 27），并通过 24/24 单元测试。
 > - **Windows**：CI（windows-latest）上 **23/23 单元测试通过**，并成功构建 NSIS 安装包；**尚未在 Windows 真机验证 BLE、音频和按键链路**。
@@ -16,13 +16,13 @@ V2 是 Tauri 2 + Rust 的完整重写，V1 的 Python 脚本已归档在 [`../v1
 
 ## 下载
 
-Release: [v2.5.7](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.7)
+Release: [v2.5.8](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.8)
 
 | 平台 | 安装包 | SHA-256 |
 |---|---|---|
-| macOS arm64 | [Xiaomi.Remote_2.5.7_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.7/Xiaomi.Remote_2.5.7_aarch64.dmg) | `1707760552744e043c04f14d4471793076856f016d3058d9dbeb8b7023c082f0` |
-| Windows x64 | [Xiaomi.Remote_2.5.7_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.7/Xiaomi.Remote_2.5.7_x64-setup.exe) | `8dd7cbff39bb67bdc6ae660ecfa6028e1ea8d8dcb18c0e8616c152290d4733b0` |
-| Linux amd64 | [Xiaomi.Remote_2.5.7_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.7/Xiaomi.Remote_2.5.7_amd64.deb) | `b827d7d23e667a1f07bb34fa502e04ea93ac8367abb07ecd0da307abb161755e` |
+| macOS arm64 | [Xiaomi.Remote_2.5.8_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_aarch64.dmg) | 见 Release |
+| Windows x64 | [Xiaomi.Remote_2.5.8_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_x64-setup.exe) | 见 Release |
+| Linux amd64 | [Xiaomi.Remote_2.5.8_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_amd64.deb) | 见 Release |
 
 > Windows/Linux 包由 CI 构建并跑过单元测试，但**没有真机验证** BLE/音频/按键；请按实验性版本对待。macOS 已实机验证。
 
@@ -60,7 +60,7 @@ Windows / Linux 已有 CI 构建的安装包（见「下载」），但**没有�
 
 ![按键映射与遥控器指示](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png)
 
-## 平台支持（V2.5.7）
+## 平台支持（V2.5.8）
 
 | 能力 | macOS | Windows | Linux |
 |---|---|---|---|
@@ -186,7 +186,7 @@ Typeless、豆包语音输入法都支持“按住一个快捷键拾音 → 转�
 
 ### Windows
 
-安装包：[Xiaomi.Remote_2.5.7_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.7/Xiaomi.Remote_2.5.7_x64-setup.exe)（未真机验证）。
+安装包：[Xiaomi.Remote_2.5.8_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_x64-setup.exe)（未真机验证）。
 
 1. 安装 [VB-CABLE](https://vb-audio.com/Cable/)。
 2. App 的音频输出选择 **CABLE Input**。
@@ -205,13 +205,13 @@ pactl load-module module-null-sink sink_name=xiaomi_remote \
 
 ### Linux 安装包
 
-CI 已构建 V2.5.7 `.deb`（amd64，未真机验证）：
+CI 已构建 V2.5.8 `.deb`（amd64，未真机验证）：
 
-[Xiaomi.Remote_2.5.7_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.7/Xiaomi.Remote_2.5.7_amd64.deb)
+[Xiaomi.Remote_2.5.8_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.8/Xiaomi.Remote_2.5.8_amd64.deb)
 
 ```bash
 sudo apt-get install -y libwebkit2gtk-4.1-0 libasound2 libudev1
-sudo dpkg -i Xiaomi.Remote_2.5.7_amd64.deb
+sudo dpkg -i Xiaomi.Remote_2.5.8_amd64.deb
 sudo apt-get install -f
 ```
 
@@ -219,7 +219,7 @@ sudo apt-get install -f
 
 ## 发布
 
-V2.5.7 已通过 `.github/workflows/v2-release.yml` 在 macOS / Windows / Ubuntu runner 上构建并附加到 [GitHub Release v2.5.7](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.7)。
+V2.5.8 已通过 `.github/workflows/v2-release.yml` 在 macOS / Windows / Ubuntu runner 上构建并附加到 [GitHub Release v2.5.8](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.8)。
 
 - macOS：已实机验证
 - Windows / Linux：CI 单元测试 + 安装包构建通过，**未做真机 BLE/音频/按键验证**
@@ -236,7 +236,7 @@ V2.5.7 已通过 `.github/workflows/v2-release.yml` 在 macOS / Windows / Ubuntu
 
 | 平台 | 验证方式 | 结果 |
 |---|---|---|
-| macOS (arm64) | 本地 `cargo test --lib` + `pnpm tauri build` + 实机语音/录音/按键 | **24/24 测试通过**；V2.5.7 已安装运行，快速设置 3/3 |
+| macOS (arm64) | 本地 `cargo test --lib` + `pnpm tauri build` + 实机语音/录音/按键 | **24/24 测试通过**；V2.5.8 已安装运行，快速设置 3/3 |
 | Windows (x86_64) | GitHub Actions `windows-latest`：`cargo test --lib` + NSIS build | **23/23 测试通过**，安装包构建成功；**未真机验证** |
 | Linux (amd64) | GitHub Actions `ubuntu-22.04`：`cargo test --lib` + `.deb` build | **25/25 测试通过**，`.deb` 构建成功；**未真机验证** |
 
@@ -257,7 +257,7 @@ V2.5.7 已通过 `.github/workflows/v2-release.yml` 在 macOS / Windows / Ubuntu
 
 - **Windows/Linux 只完成了 CI 构建和单元测试，尚未在真机验证**。BLE、音频设备、按键后端都需要在对应平台重新验证。
 - 遥控器松键后约 0.3–0.5 秒内重按，可能仍会被遥控器自身的 ATVV 冷却挡住；这是目前实测的下限。
-- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的语音键。V2.5.7 已重新授权并显示 `macOS event tap`；重装/换签名后需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
+- macOS 的语音键 → 右 Option 由 ATVV 会话事件驱动，并用 EventTap 吞掉会话期间的语音键。V2.5.8 已重新授权并显示 `macOS event tap`；重装/换签名后需要在「系统设置 → 隐私与安全性 → Device Control and Data Access」里重新允许 Xiaomi Remote（需要密码解锁）。未授权时会退回 `hidutil` 的 F5+Option。
 - 按键录制复用 Accessibility 的 EventTap，不需要额外的 Input Monitoring 权限；目前录制入口只在 macOS 提供，Linux/Windows 使用默认绑定或配置文件。
 - Windows 默认只实现语音键（push-to-talk）的 `SendInput` 注入。Home/TV/菜单/返回可通过可选的 `interception` feature 启用，但需要安装 Interception 内核驱动，并把 `interception.dll` 放到 exe 同目录。该路径**未在 Windows 真机验证**：
 

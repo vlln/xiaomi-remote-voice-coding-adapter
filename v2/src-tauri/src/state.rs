@@ -170,6 +170,7 @@ pub struct AppState {
     pub key_mapper: Box<dyn KeyMapper>,
     pub logs: Arc<LogBuffer>,
     pub last_recording: Arc<Mutex<Option<PathBuf>>>,
+    devices: Mutex<Vec<AudioDeviceInfo>>,
 }
 
 impl AppState {
@@ -182,6 +183,7 @@ impl AppState {
             key_mapper,
             logs: Arc::new(LogBuffer::default()),
             last_recording: Arc::new(Mutex::new(None)),
+            devices: Mutex::new(audio::list_output_devices()),
         }
     }
 
@@ -195,11 +197,17 @@ impl AppState {
         self.logs.push(level, message);
     }
 
+    pub fn refresh_devices(&self) -> Vec<AudioDeviceInfo> {
+        let devices = audio::list_output_devices();
+        *self.devices.lock() = devices.clone();
+        devices
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
             settings: self.settings.lock().clone(),
             status: self.status.lock().clone(),
-            devices: audio::list_output_devices(),
+            devices: self.devices.lock().clone(),
             logs: self.logs.snapshot(),
             default_device: audio::default_device_hint().to_string(),
             platform: std::env::consts::OS.to_string(),

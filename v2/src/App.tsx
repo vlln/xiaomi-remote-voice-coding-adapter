@@ -474,6 +474,20 @@ function App() {
   }, [toast]);
 
   useEffect(() => {
+    if (page !== "audio") return;
+    let disposed = false;
+    invoke<Snapshot>("refresh_devices")
+      .then((next) => {
+        if (disposed) return;
+        setSnap((prev) => (prev ? { ...prev, devices: next.devices } : next));
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+    };
+  }, [page]);
+
+  useEffect(() => {
     if (snap?.accessibility_trusted) {
       invoke("apply_key_mapping").catch(() => {});
     }
@@ -1035,7 +1049,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5.7</small>
+            <small>小米遥控器 2 · V2.5.8</small>
           </span>
         </div>
 
@@ -1076,7 +1090,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.7</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.8</div>
         </div>
       </aside>
 
@@ -1618,7 +1632,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.7</strong>
+                    <strong>2.5.8</strong>
                   </div>
                   <div>
                     <span>平台</span>

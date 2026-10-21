@@ -5498,7 +5498,7 @@ dependencies = [
 
 [[package]]
 name = "xiaomi-remote-v2"
-version = "2.5.7"
+version = "2.5.8"
 dependencies = [
  "anyhow",
  "btleplug",
