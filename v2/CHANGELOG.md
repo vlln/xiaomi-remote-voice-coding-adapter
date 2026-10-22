@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.10
+
+### Changed
+
+- Running menu-bar state is now a filled rounded badge with a mic cutout instead of a small dot; stopped remains an outline mic
+
 ## 2.5.9
 
 ### Added

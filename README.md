@@ -9,10 +9,10 @@
 BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 · 菜单栏常驻
 
 <p>
-  <strong>v2.5.9</strong> · macOS 已实机验证 · Windows/Linux CI 构建 · Rust 1.85+
+  <strong>v2.5.10</strong> · macOS 已实机验证 · Windows/Linux CI 构建 · Rust 1.85+
 </p>
 <p>
-  <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.9">下载 Release</a>
+  <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.10">下载 Release</a>
   ·
   <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter">GitHub</a>
 </p>
@@ -58,13 +58,13 @@ Typeless、豆包语音输入法都支持“按一个键开始拾音，然后转
 
 ## 下载
 
-Release: **[v2.5.9](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.9)**
+Release: **[v2.5.10](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.10)**
 
 | 平台 | 安装包 | 验证状态 |
 |---|---|---|
-| macOS arm64 | [Xiaomi.Remote_2.5.9_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.9/Xiaomi.Remote_2.5.9_aarch64.dmg) | ✅ 已实机验证 |
-| Windows x64 | [Xiaomi.Remote_2.5.9_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.9/Xiaomi.Remote_2.5.9_x64-setup.exe) | ⚠️ CI 构建，未真机验证 |
-| Linux amd64 | [Xiaomi.Remote_2.5.9_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.9/Xiaomi.Remote_2.5.9_amd64.deb) | ⚠️ CI 构建，未真机验证 |
+| macOS arm64 | [Xiaomi.Remote_2.5.10_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.10/Xiaomi.Remote_2.5.10_aarch64.dmg) | ✅ 已实机验证 |
+| Windows x64 | [Xiaomi.Remote_2.5.10_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.10/Xiaomi.Remote_2.5.10_x64-setup.exe) | ⚠️ CI 构建，未真机验证 |
+| Linux amd64 | [Xiaomi.Remote_2.5.10_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.10/Xiaomi.Remote_2.5.10_amd64.deb) | ⚠️ CI 构建，未真机验证 |
 
 > SHA-256 会随 Release 资产一起更新。
 

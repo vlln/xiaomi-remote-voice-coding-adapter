@@ -1049,7 +1049,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5.9</small>
+            <small>小米遥控器 2 · V2.5.10</small>
           </span>
         </div>
 
@@ -1090,7 +1090,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.9</div>
+          <div className="sidebar-version">{snap.platform} · 2.5.10</div>
         </div>
       </aside>
 
@@ -1632,7 +1632,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.9</strong>
+                    <strong>2.5.10</strong>
                   </div>
                   <div>
                     <span>平台</span>
