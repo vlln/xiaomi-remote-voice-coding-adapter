@@ -18,13 +18,13 @@ Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag
 
 ```text
 Xiaomi.Remote_2.5.11_aarch64.dmg
-SHA-256 83202d3d0ab880d54b0222899a118fcef4a02f68f20cece0d8946671810ffbd6
+SHA-256 1621ca6e84a31ec03ae1860453d7893b40f5322342845216590e86fc9bea50c1
 
 Xiaomi.Remote_2.5.11_x64-setup.exe
-SHA-256 a43494db866579a107d752e4ee678d6fef40e42b0e303a5100a0947d99e95e0a
+SHA-256 e0630022e9dadf08710fdfe879424c3b0d4c066e1594480e07d45cf9e87956f3
 
 Xiaomi.Remote_2.5.11_amd64.deb
-SHA-256 4f9fa0bf74a5dffec8f6983c1c74939349e5f2785bd37242a12c51c15b4d12a0
+SHA-256 6dda83316ffe4f65d8d350f846be462a36be1c7c2bed228c982abf711aa5753a
 ```
 
 - macOS 签名：ad-hoc（`-`），**未做 Apple 公证**
