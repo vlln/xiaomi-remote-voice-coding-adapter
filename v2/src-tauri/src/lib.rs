@@ -4,6 +4,7 @@ mod core;
 mod keys;
 mod recording;
 mod state;
+mod update;
 
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -29,6 +30,9 @@ pub(crate) fn set_tray_running(app: &AppHandle, running: bool) {
         } else {
             "Xiaomi Remote · 已停止"
         }));
+        if let Ok(menu) = tray_menu(app, running) {
+            let _ = tray.set_menu(Some(menu));
+        }
         #[cfg(target_os = "macos")]
         {
             let image = if running {
@@ -51,6 +55,11 @@ pub(crate) fn set_tray_running(app: &AppHandle, running: bool) {
 }
 
 use state::{AppState, Settings, Snapshot};
+
+#[tauri::command]
+async fn check_update() -> Result<update::UpdateInfo, String> {
+    update::check().await
+}
 
 #[tauri::command]
 fn get_snapshot(app: AppHandle) -> Snapshot {
@@ -186,12 +195,26 @@ async fn set_launch_at_login(app: AppHandle, enabled: bool) -> Result<Snapshot, 
     Ok(app.state::<AppState>().snapshot())
 }
 
-fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
+fn tray_menu(app: &AppHandle, running: bool) -> tauri::Result<Menu<tauri::Wry>> {
     let show = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
-    let toggle = MenuItem::with_id(app, "toggle", "启动 / 停止语音桥接", true, None::<&str>)?;
+    let toggle = MenuItem::with_id(
+        app,
+        "toggle",
+        if running {
+            "停止语音桥接"
+        } else {
+            "启动语音桥接"
+        },
+        true,
+        None::<&str>,
+    )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "退出 Xiaomi Remote", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &toggle, &separator, &quit])?;
+    Menu::with_items(app, &[&show, &toggle, &separator, &quit])
+}
+
+fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
+    let menu = tray_menu(app.handle(), false)?;
 
     #[cfg(target_os = "macos")]
     let initial_icon = tray_image(TRAY_OFF);
@@ -277,6 +300,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
+            check_update,
             start,
             stop,
             update_settings,

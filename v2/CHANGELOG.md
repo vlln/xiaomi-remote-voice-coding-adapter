@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.5.11
+
+### Added
+
+- Cross-platform update check (jsDelivr manifest + GitHub API fallback)
+- Update banner and download link to the platform-specific release asset
+- Manual "检查更新" in Advanced
+
+### Changed
+
+- Main action button and tray menu show "启动语音桥接"/"停止语音桥接" based on state
+
 ## 2.5.10
 
 ### Changed

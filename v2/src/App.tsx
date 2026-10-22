@@ -67,6 +67,7 @@ type Snapshot = {
   logs: LogEntry[];
   default_device: string;
   platform: string;
+  version: string;
   last_recording: string | null;
   accessibility_trusted: boolean;
   key_mapping_full: boolean;
@@ -74,6 +75,17 @@ type Snapshot = {
 };
 
 type CapturedKey = { page: number; usage: number; name: string };
+
+type UpdateInfo = {
+  current: string;
+  latest: string;
+  available: boolean;
+  url: string;
+  asset_url: string | null;
+  asset_name: string | null;
+  notes: string | null;
+  source: string;
+};
 
 const number = new Intl.NumberFormat("zh-CN");
 
@@ -396,6 +408,10 @@ function App() {
     ok: boolean;
   } | null>(null);
   const [guide, setGuide] = useState<Guide | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const testHandlerRef = useRef<(key: CapturedKey) => void>(() => {});
@@ -465,6 +481,13 @@ function App() {
       unlistenError?.();
       invoke("stop_key_test").catch(() => {});
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      checkUpdate(false);
+    }, 4000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -860,6 +883,34 @@ function App() {
     }
   }
 
+  async function checkUpdate(manual = false) {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    setUpdateError(null);
+    try {
+      const info = await invoke<UpdateInfo>("check_update");
+      setUpdateInfo(info);
+      if (info.available) setUpdateDismissed(false);
+      if (manual) {
+        setToast(
+          info.available
+            ? `发现新版本 v${info.latest}`
+            : `已是最新版本 v${info.current}`,
+        );
+      }
+    } catch (error) {
+      setUpdateError(String(error));
+      if (manual) setToast(String(error));
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
+  function downloadUpdate() {
+    const url = updateInfo?.asset_url ?? updateInfo?.url;
+    if (url) openUrl(url);
+  }
+
   async function openRecording() {
     try {
       await invoke("open_last_recording");
@@ -1049,7 +1100,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
           </span>
           <span>
             <strong>Xiaomi Remote</strong>
-            <small>小米遥控器 2 · V2.5.10</small>
+            <small>小米遥控器 2 · V{snap.version}</small>
           </span>
         </div>
 
@@ -1090,7 +1141,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
             <span className="status-dot" />
             <span>{stateLabel}</span>
           </div>
-          <div className="sidebar-version">{snap.platform} · 2.5.10</div>
+          <div className="sidebar-version">{snap.platform} · {snap.version}</div>
         </div>
       </aside>
 
@@ -1119,7 +1170,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
               disabled={busy}
             >
               <Icon name="power" size={15} />
-              {running ? "停止" : "启动"}
+              {running ? "停止语音桥接" : "启动语音桥接"}
             </button>
           </div>
         </header>
@@ -1131,6 +1182,25 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
         )}
 
         <div className="page-scroll" ref={pageRef}>
+          {updateInfo?.available && !updateDismissed && (
+            <div className="update-banner">
+              <div className="update-banner-copy">
+                <strong>发现新版本 v{updateInfo.latest}</strong>
+                <span>当前 v{updateInfo.current}</span>
+              </div>
+              <button className="btn btn-small btn-primary" onClick={downloadUpdate}>
+                下载更新
+              </button>
+              <button
+                className="icon-btn"
+                title="稍后"
+                onClick={() => setUpdateDismissed(true)}
+              >
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+          )}
+
           {page === "overview" && (
             <div className="page">
               <section className="hero">
@@ -1622,6 +1692,43 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
               <section className="section">
                 <div className="section-head">
                   <div>
+                    <h3>更新</h3>
+                  </div>
+                  <button
+                    className="btn btn-small"
+                    onClick={() => checkUpdate(true)}
+                    disabled={checkingUpdate}
+                  >
+                    {checkingUpdate ? "检查中…" : "检查更新"}
+                  </button>
+                </div>
+                <div className="update-status">
+                  <div className="update-status-copy">
+                    <strong>当前 v{snap.version}</strong>
+                    <span>
+                      {updateInfo
+                        ? updateInfo.available
+                          ? `新版本 v${updateInfo.latest} 可用`
+                          : "已是最新版本"
+                        : updateError
+                          ? updateError
+                          : "尚未检查"}
+                    </span>
+                  </div>
+                  {updateInfo?.available && (
+                    <button
+                      className="btn btn-small btn-primary"
+                      onClick={downloadUpdate}
+                    >
+                      下载更新
+                    </button>
+                  )}
+                </div>
+              </section>
+
+              <section className="section">
+                <div className="section-head">
+                  <div>
                     <h3>运行日志</h3>
                   </div>
                 </div>
@@ -1632,7 +1739,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger`;
                 <div className="about-grid">
                   <div>
                     <span>版本</span>
-                    <strong>2.5.10</strong>
+                    <strong>{snap.version}</strong>
                   </div>
                   <div>
                     <span>平台</span>

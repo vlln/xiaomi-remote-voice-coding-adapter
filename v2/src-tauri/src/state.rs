@@ -133,6 +133,7 @@ pub struct Snapshot {
     pub logs: Vec<LogEntry>,
     pub default_device: String,
     pub platform: String,
+    pub version: String,
     pub last_recording: Option<String>,
     pub accessibility_trusted: bool,
     pub key_mapping_full: bool,
@@ -211,6 +212,7 @@ impl AppState {
             logs: self.logs.snapshot(),
             default_device: audio::default_device_hint().to_string(),
             platform: std::env::consts::OS.to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             last_recording: self
                 .last_recording
                 .lock()

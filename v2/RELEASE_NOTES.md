@@ -1,4 +1,4 @@
-# Xiaomi Remote V2.5.10 — Release Notes
+# Xiaomi Remote V2.5.11 — Release Notes
 
 发布日期：2026-10-20
 
@@ -14,16 +14,16 @@
 
 ## 产物
 
-Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.10
+Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.11
 
 ```text
-Xiaomi.Remote_2.5.10_aarch64.dmg
+Xiaomi.Remote_2.5.11_aarch64.dmg
 SHA-256 83202d3d0ab880d54b0222899a118fcef4a02f68f20cece0d8946671810ffbd6
 
-Xiaomi.Remote_2.5.10_x64-setup.exe
+Xiaomi.Remote_2.5.11_x64-setup.exe
 SHA-256 a43494db866579a107d752e4ee678d6fef40e42b0e303a5100a0947d99e95e0a
 
-Xiaomi.Remote_2.5.10_amd64.deb
+Xiaomi.Remote_2.5.11_amd64.deb
 SHA-256 4f9fa0bf74a5dffec8f6983c1c74939349e5f2785bd37242a12c51c15b4d12a0
 ```
 
@@ -53,13 +53,13 @@ SHA-256 4f9fa0bf74a5dffec8f6983c1c74939349e5f2785bd37242a12c51c15b4d12a0
 
 ### Windows
 
-运行 `Xiaomi.Remote_2.5.10_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
+运行 `Xiaomi.Remote_2.5.11_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
 
 ### Linux
 
 ```bash
 sudo apt-get install -y libwebkit2gtk-4.1-0 libasound2 libudev1
-sudo dpkg -i Xiaomi.Remote_2.5.10_amd64.deb
+sudo dpkg -i Xiaomi.Remote_2.5.11_amd64.deb
 sudo apt-get install -f
 ```
 
@@ -75,8 +75,11 @@ sudo apt-get install -f
 
 ### 新增
 
+- 跨平台版本检测：jsDelivr `update.json` 优先，GitHub Releases API 回退
+- 顶部新版本提示 + 高级页「检查更新 / 下载更新」；按平台打开 DMG / NSIS / `.deb`，不静默安装
 - macOS 菜单栏模板图标：停止=空心麦克风，运行=实心麦克风 + 状态点；自动适配深浅色菜单栏
 - 菜单栏 tooltip 显示运行/停止状态
+- 主按钮和托盘菜单按状态显示「启动语音桥接 / 停止语音桥接」
 
 ### 修复
 

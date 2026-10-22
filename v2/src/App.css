@@ -1654,6 +1654,64 @@ button:disabled {
   background: var(--accent-soft);
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 34px 0;
+  padding: 10px 12px;
+  border: 1px solid #ffd2b4;
+  border-radius: 10px;
+  background: #fff8f2;
+}
+
+.update-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.update-banner-copy strong {
+  color: #8a3f0f;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.update-banner-copy span {
+  color: #a5673c;
+  font-size: 11px;
+}
+
+.update-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.update-status-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-status-copy strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.update-status-copy span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* Narrow window */
 
 @media (max-width: 900px) {

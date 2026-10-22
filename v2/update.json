@@ -1,0 +1,10 @@
+{
+  "version": "2.5.11",
+  "url": "https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.11",
+  "notes": "新增版本检测与下载更新入口；菜单栏状态图标更清晰；操作按钮根据运行状态显示启动/停止语音桥接。",
+  "assets": {
+    "macos": "https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.11/Xiaomi.Remote_2.5.11_aarch64.dmg",
+    "windows": "https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.11/Xiaomi.Remote_2.5.11_x64-setup.exe",
+    "linux": "https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.11/Xiaomi.Remote_2.5.11_amd64.deb"
+  }
+}

@@ -9,10 +9,10 @@
 BLE 语音 → 虚拟麦克风 · 设备级按键映射 · 持续按键测试 · 菜单栏常驻
 
 <p>
-  <strong>v2.5.10</strong> · macOS 已实机验证 · Windows/Linux CI 构建 · Rust 1.85+
+  <strong>v2.5.11</strong> · macOS 已实机验证 · Windows/Linux CI 构建 · Rust 1.85+
 </p>
 <p>
-  <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.10">下载 Release</a>
+  <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.11">下载 Release</a>
   ·
   <a href="https://github.com/vlln/xiaomi-remote-voice-coding-adapter">GitHub</a>
 </p>
@@ -58,26 +58,30 @@ Typeless、豆包语音输入法都支持“按一个键开始拾音，然后转
 
 ## 下载
 
-Release: **[v2.5.10](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.10)**
+Release: **[v2.5.11](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.11)**
 
 | 平台 | 安装包 | 验证状态 |
 |---|---|---|
-| macOS arm64 | [Xiaomi.Remote_2.5.10_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.10/Xiaomi.Remote_2.5.10_aarch64.dmg) | ✅ 已实机验证 |
-| Windows x64 | [Xiaomi.Remote_2.5.10_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.10/Xiaomi.Remote_2.5.10_x64-setup.exe) | ⚠️ CI 构建，未真机验证 |
-| Linux amd64 | [Xiaomi.Remote_2.5.10_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.10/Xiaomi.Remote_2.5.10_amd64.deb) | ⚠️ CI 构建，未真机验证 |
+| macOS arm64 | [Xiaomi.Remote_2.5.11_aarch64.dmg](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.11/Xiaomi.Remote_2.5.11_aarch64.dmg) | ✅ 已实机验证 |
+| Windows x64 | [Xiaomi.Remote_2.5.11_x64-setup.exe](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.11/Xiaomi.Remote_2.5.11_x64-setup.exe) | ⚠️ CI 构建，未真机验证 |
+| Linux amd64 | [Xiaomi.Remote_2.5.11_amd64.deb](https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/download/v2.5.11/Xiaomi.Remote_2.5.11_amd64.deb) | ⚠️ CI 构建，未真机验证 |
 
 <details>
 <summary>SHA-256</summary>
 
 ```text
-83202d3d0ab880d54b0222899a118fcef4a02f68f20cece0d8946671810ffbd6  Xiaomi.Remote_2.5.10_aarch64.dmg
-4f9fa0bf74a5dffec8f6983c1c74939349e5f2785bd37242a12c51c15b4d12a0  Xiaomi.Remote_2.5.10_amd64.deb
-a43494db866579a107d752e4ee678d6fef40e42b0e303a5100a0947d99e95e0a  Xiaomi.Remote_2.5.10_x64-setup.exe
+83202d3d0ab880d54b0222899a118fcef4a02f68f20cece0d8946671810ffbd6  Xiaomi.Remote_2.5.11_aarch64.dmg
+4f9fa0bf74a5dffec8f6983c1c74939349e5f2785bd37242a12c51c15b4d12a0  Xiaomi.Remote_2.5.11_amd64.deb
+a43494db866579a107d752e4ee678d6fef40e42b0e303a5100a0947d99e95e0a  Xiaomi.Remote_2.5.11_x64-setup.exe
 ```
 
 </details>
 
 > macOS 是唯一完成**真机 BLE / 音频 / 按键**验证的平台。Windows/Linux 通过了 CI 单元测试和安装包构建，但还没有在真机上验证，发布包请按实验性版本对待。
+
+## 更新
+
+App 启动后会自动检查版本，也可以在「高级 → 更新 → 检查更新」手动触发。检查源优先使用 jsDelivr 上的 `update.json`，失败时回退 GitHub API；发现新版本会在页面顶部提示，按钮会下载对应平台的安装包（DMG / NSIS / `.deb`），不会静默安装。
 
 ## macOS 快速开始
 
