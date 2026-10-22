@@ -247,10 +247,11 @@ async fn connect_and_stream(
                             // Drive right Option from the actual mic session.
                             // The remote often starts a session with 0x04
                             // without sending a separate 0x08 key event.
-                            voice_modifier::set(session.snapshot().mic_open);
+                            let mut opened = false;
                             for command in commands {
                                 match command {
                                     SessionCommand::MicOpen(payload) => {
+                                        opened = true;
                                         if let Err(err) = write_packet(&peripheral, &tx, &payload).await {
                                             session.mic_open_failed();
                                             voice_modifier::set(false);
@@ -264,6 +265,13 @@ async fn connect_and_stream(
                                     }
                                 }
                             }
+                            if opened {
+                                // A new voice session must start from a clean key
+                                // state; otherwise a stuck target key can make a
+                                // dictation app ignore the next press.
+                                voice_modifier::force_release();
+                            }
+                            voice_modifier::set(session.snapshot().mic_open);
                             let _ = events.send(EngineEvent::Session(session.snapshot())).await;
                         }
                     }

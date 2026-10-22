@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.5.9
+
+### Added
+
+- macOS menu-bar template icon with distinct stopped/running states
+- Menu-bar tooltip shows running/stopped
+
+### Fixed
+
+- Reset the voice target key at the start of every new session to clear a stuck dictation key
+- Increase the audio ring buffer to 5 seconds to avoid drops during longer recordings
+
 ## 2.5.8
 
 ### Fixed

@@ -5,9 +5,50 @@ mod keys;
 mod recording;
 mod state;
 
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager};
+
+const TRAY_OFF: &[u8] = include_bytes!("../icons/tray-off.png");
+const TRAY_ON: &[u8] = include_bytes!("../icons/tray-on.png");
+const TRAY_OFF_WHITE: &[u8] = include_bytes!("../icons/tray-off-white.png");
+const TRAY_ON_WHITE: &[u8] = include_bytes!("../icons/tray-on-white.png");
+
+fn tray_image(bytes: &'static [u8]) -> Image<'static> {
+    Image::from_bytes(bytes).expect("embedded tray icon")
+}
+
+/// Switch the macOS menu bar icon between stopped (outline) and running
+/// (filled + activity dot). Template mode lets macOS render it correctly in
+/// both light and dark menu bars.
+pub(crate) fn set_tray_running(app: &AppHandle, running: bool) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(if running {
+            "Xiaomi Remote · 运行中"
+        } else {
+            "Xiaomi Remote · 已停止"
+        }));
+        #[cfg(target_os = "macos")]
+        {
+            let image = if running {
+                tray_image(TRAY_ON)
+            } else {
+                tray_image(TRAY_OFF)
+            };
+            let _ = tray.set_icon_with_as_template(Some(image), true);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let image = if running {
+                tray_image(TRAY_ON_WHITE)
+            } else {
+                tray_image(TRAY_OFF_WHITE)
+            };
+            let _ = tray.set_icon(Some(image));
+        }
+    }
+}
 
 use state::{AppState, Settings, Snapshot};
 
@@ -152,8 +193,14 @@ fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "退出 Xiaomi Remote", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &toggle, &separator, &quit])?;
 
-    let mut builder = TrayIconBuilder::new()
+    #[cfg(target_os = "macos")]
+    let initial_icon = tray_image(TRAY_OFF);
+    #[cfg(not(target_os = "macos"))]
+    let initial_icon = tray_image(TRAY_OFF_WHITE);
+
+    let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
+        .icon(initial_icon)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => state::show_window(app),
@@ -161,8 +208,9 @@ fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
             "quit" => app.exit(0),
             _ => {}
         });
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.icon_as_template(true);
     }
     builder.build(app)?;
     Ok(())
@@ -199,6 +247,7 @@ pub fn run() {
                     .log("warn", format!("按键映射未应用: {err}"));
             }
             build_tray(app)?;
+            set_tray_running(&handle, false);
 
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);

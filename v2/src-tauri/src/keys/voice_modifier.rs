@@ -19,6 +19,14 @@ pub fn set_target(keycode: u16) {
     TARGET_KEYCODE.store(keycode, Ordering::Relaxed);
 }
 
+/// Force a key-up even if the session engine thinks the target is already up.
+/// This clears a target key that a previous app/session left logically down.
+pub fn force_release() {
+    if DOWN.swap(false, Ordering::Relaxed) {
+        post(false);
+    }
+}
+
 pub fn set_enabled(enabled: bool) {
     ENABLED.store(enabled, Ordering::Relaxed);
     if !enabled {

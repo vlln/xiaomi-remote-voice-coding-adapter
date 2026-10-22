@@ -23,7 +23,7 @@ use crate::core::dsp::Resampler;
 
 const OUTPUT_RATE: u32 = 48_000;
 const CHANNELS: u16 = 2;
-const RING_SECONDS: usize = 2;
+const RING_SECONDS: usize = 5;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioDeviceInfo {

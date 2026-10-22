@@ -343,6 +343,7 @@ pub async fn start_engine(app: &AppHandle) -> Result<(), String> {
         let snapshot = status.clone();
         drop(status);
         let _ = app.emit("status", snapshot);
+        crate::set_tray_running(app, true);
         let mut engine = state.engine.lock();
         *engine = Some(EngineHandle {
             stop: Some(stop_tx),
@@ -372,6 +373,7 @@ pub async fn stop_engine(app: &AppHandle) -> Result<(), String> {
         drop(status);
         let _ = app.emit("status", snapshot);
     }
+    crate::set_tray_running(app, false);
     state.log("info", "语音桥接已停止");
     Ok(())
 }
@@ -404,6 +406,7 @@ fn handle_engine_event(app: &AppHandle, event: EngineEvent) {
             }
             state.log("info", format!("状态: {new_state}"));
             let _ = app.emit("status", snapshot);
+            crate::set_tray_running(app, new_state != "idle");
             if new_state == "connected" {
                 // hidutil mappings are per-device and can be lost when the
                 // remote reconnects; re-apply after every successful connect.

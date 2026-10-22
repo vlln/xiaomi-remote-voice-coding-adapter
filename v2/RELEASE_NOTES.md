@@ -1,4 +1,4 @@
-# Xiaomi Remote V2.5.8 — Release Notes
+# Xiaomi Remote V2.5.9 — Release Notes
 
 发布日期：2026-10-20
 
@@ -14,17 +14,12 @@
 
 ## 产物
 
-Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.8
+Release: https://github.com/vlln/xiaomi-remote-voice-coding-adapter/releases/tag/v2.5.9
 
 ```text
-Xiaomi.Remote_2.5.8_aarch64.dmg
-SHA-256 5a2c774fa39eb3fc79d72779de5b1eafe3e1706da24210e785533a79e92734ca
-
-Xiaomi.Remote_2.5.8_x64-setup.exe
-SHA-256 94e8395c6075edad6bd229c86d2f41d74f105f064ea28ad6d9b882587c8f68ab
-
-Xiaomi.Remote_2.5.8_amd64.deb
-SHA-256 75d0e3e51bcc3d7cb3a448621b0f3b234e5c6ba66dd21ee896365e7ebd9f3fc8
+Xiaomi.Remote_2.5.9_aarch64.dmg
+Xiaomi.Remote_2.5.9_x64-setup.exe
+Xiaomi.Remote_2.5.9_amd64.deb
 ```
 
 - macOS 签名：ad-hoc（`-`），**未做 Apple 公证**
@@ -53,13 +48,13 @@ SHA-256 75d0e3e51bcc3d7cb3a448621b0f3b234e5c6ba66dd21ee896365e7ebd9f3fc8
 
 ### Windows
 
-运行 `Xiaomi.Remote_2.5.8_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
+运行 `Xiaomi.Remote_2.5.9_x64-setup.exe`；需要 WebView2 Runtime 和 VB-CABLE（未真机验证）。
 
 ### Linux
 
 ```bash
 sudo apt-get install -y libwebkit2gtk-4.1-0 libasound2 libudev1
-sudo dpkg -i Xiaomi.Remote_2.5.8_amd64.deb
+sudo dpkg -i Xiaomi.Remote_2.5.9_amd64.deb
 sudo apt-get install -f
 ```
 
@@ -71,10 +66,21 @@ sudo apt-get install -f
 - [按键映射](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/keymap.png)
 - [持续按键测试](https://cdn.jsdelivr.net/gh/vlln/xiaomi-remote-voice-coding-adapter@main/v2/docs/capture.png)
 
-## 本版修复
+## 本版变化
 
-- 修复每 2.5 秒轮询时重新枚举 CoreAudio 设备导致的频繁建流、轻微响声和 Dock 抖动
-- 音频设备列表改为缓存，只在进入音频页时刷新
+### 新增
+
+- macOS 菜单栏模板图标：停止=空心麦克风，运行=实心麦克风 + 状态点；自动适配深浅色菜单栏
+- 菜单栏 tooltip 显示运行/停止状态
+
+### 修复
+
+- 每次新语音会话强制重置目标键，避免长录音/多次录音后输入法收不到新的按键事件
+- 音频环形缓冲从 2 秒增加到 5 秒，减少长录音时的丢样
+- 上一版已修复每 2.5 秒 CoreAudio 设备枚举造成的建流/响声/Dock 抖动
+
+### 文档
+
 - 新增 Typeless / 豆包语音输入法联动文档
 
 ## 已知限制
